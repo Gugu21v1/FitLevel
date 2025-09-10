@@ -75,7 +75,7 @@ export const authService = {
   },
 
   onAuthStateChange(callback: (user: any) => void) {
-    return supabase.auth.onAuthStateChange(async (event, session) => {
+    return supabase.auth.onAuthStateChange(async (_, session) => {
       callback(session?.user || null);
     });
   },
@@ -154,14 +154,32 @@ export const dataService = {
 
   // Admin functions
   async getAllAcademies() {
-    const { data, error } = await supabase
-      .from('profiles')
-      .select('*')
-      .eq('type', 'academia')
-      .order('name');
-    
-    if (error) throw error;
-    return data;
+    try {
+      // Tentar com RPC primeiro
+      const { data: rpcData, error: rpcError } = await supabase.rpc('get_all_academies');
+      
+      if (!rpcError && rpcData) {
+        return rpcData;
+      }
+      
+      console.warn('RPC get_all_academies not available, using direct query');
+      
+      // Fallback para query direta
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('id, name, email, type, address, number, created_at')
+        .eq('type', 'academia')
+        .order('name');
+      
+      if (error) {
+        console.error('Error fetching academies:', error);
+        return [];
+      }
+      return data || [];
+    } catch (error) {
+      console.error('getAllAcademies failed:', error);
+      return [];
+    }
   },
 
   async getAcademyStudents(academyId: string) {
@@ -174,6 +192,73 @@ export const dataService = {
     
     if (error) throw error;
     return data;
+  },
+
+  async getAllStudents() {
+    try {
+      // Tentar com RPC primeiro
+      const { data: rpcData, error: rpcError } = await supabase.rpc('get_all_students');
+      
+      if (!rpcError && rpcData) {
+        return rpcData;
+      }
+      
+      console.warn('RPC get_all_students not available, using direct query');
+      
+      // Fallback para query direta
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('id, name, email')
+        .eq('type', 'aluno')
+        .limit(100);
+      
+      if (error) {
+        console.error('Error fetching students:', error);
+        return [];
+      }
+      return data || [];
+    } catch (error) {
+      console.error('getAllStudents failed:', error);
+      return [];
+    }
+  },
+
+  async promoteUserToAcademy(userId: string, academyData: { address: string; number?: string }) {
+    try {
+      // Tentar com RPC primeiro para evitar problemas de RLS
+      const { data: rpcData, error: rpcError } = await supabase.rpc('promote_user_to_academy', {
+        user_id: userId,
+        academy_address: academyData.address,
+        academy_number: academyData.number || null
+      });
+      
+      if (!rpcError && rpcData) {
+        return rpcData;
+      }
+      
+      console.warn('RPC promote_user_to_academy not available, using direct update');
+      
+      // Fallback para update direto
+      const { data, error } = await supabase
+        .from('profiles')
+        .update({
+          type: 'academia',
+          address: academyData.address,
+          number: academyData.number,
+        })
+        .eq('id', userId)
+        .select()
+        .single();
+      
+      if (error) {
+        console.error('Error promoting user:', error);
+        throw error;
+      }
+      return data;
+    } catch (error) {
+      console.error('promoteUserToAcademy failed:', error);
+      throw error;
+    }
   },
 
   async createAcademy(academyData: { name: string; address: string; number?: string }) {
@@ -191,6 +276,91 @@ export const dataService = {
     
     if (error) throw error;
     return data;
+  },
+
+  async createAcademyWithAuth(academyData: { name: string; email: string; password: string; address: string; number?: string }) {
+    try {
+      console.log('Creating academy with auth data:', { ...academyData, password: '[HIDDEN]' });
+
+      // Create user in Supabase Auth
+      const { data: authData, error: authError } = await supabase.auth.signUp({
+        email: academyData.email,
+        password: academyData.password,
+        options: {
+          data: {
+            name: academyData.name,
+          },
+        },
+      });
+
+      if (authError) {
+        console.error('Auth creation error:', authError);
+        throw authError;
+      }
+
+      if (!authData.user) {
+        throw new Error('Failed to create user account');
+      }
+
+      console.log('Auth user created successfully:', authData.user.id);
+
+      // Then create the profile in the database
+      const { data: profileData, error: profileError } = await supabase
+        .from('profiles')
+        .insert({
+          id: authData.user.id,
+          name: academyData.name,
+          email: academyData.email,
+          type: 'academia',
+          address: academyData.address,
+          number: academyData.number,
+          status: 'ativo'
+        })
+        .select()
+        .single();
+
+      if (profileError) {
+        console.error('Profile creation failed:', profileError);
+        // Try alternative approach - maybe the trigger created it already
+        const { data: existingProfile } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('id', authData.user.id)
+          .single();
+
+        if (existingProfile) {
+          console.log('Profile exists but with wrong data, updating...');
+          const { data: updatedProfile, error: updateError } = await supabase
+            .from('profiles')
+            .update({
+              name: academyData.name,
+              email: academyData.email,
+              type: 'academia',
+              address: academyData.address,
+              number: academyData.number,
+              status: 'ativo'
+            })
+            .eq('id', authData.user.id)
+            .select()
+            .single();
+
+          if (updateError) {
+            console.error('Profile update failed:', updateError);
+            throw updateError;
+          }
+
+          return { user: authData.user, profile: updatedProfile };
+        } else {
+          throw profileError;
+        }
+      }
+
+      console.log('Academy created successfully:', profileData);
+      return { user: authData.user, profile: profileData };
+    } catch (error) {
+      console.error('Error creating academy with auth:', error);
+      throw error;
+    }
   },
 
   // Exercises

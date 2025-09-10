@@ -1,21 +1,15 @@
 import React, { useState, useEffect } from 'react';
 import styled from '@emotion/styled';
 import { motion } from 'framer-motion';
-import { 
-  Building2, 
-  Users, 
-  Plus, 
-  ChevronRight, 
-  ArrowLeft,
-  MapPin,
-  Phone
-} from 'lucide-react';
+import { Search, Plus, Building2, Users, MapPin, Phone, Mail } from 'lucide-react';
 import { theme } from '../../styles/theme';
 import { dataService } from '../../services/supabase';
+import { useAuth } from '../../contexts/AuthContext';
+import { useNavigate } from 'react-router-dom';
 import type { User } from '../../types';
 
 const Container = styled.div`
-  padding: ${theme.spacing.lg};
+  padding: ${theme.spacing.xl};
   max-width: 1200px;
   margin: 0 auto;
 `;
@@ -25,77 +19,74 @@ const Header = styled.div`
   justify-content: space-between;
   align-items: center;
   margin-bottom: ${theme.spacing.xl};
+  flex-wrap: wrap;
+  gap: ${theme.spacing.md};
 `;
 
 const Title = styled.h1`
-  font-size: ${theme.fontSize.xl};
+  font-size: ${theme.fontSize.xxl};
   color: ${theme.colors.text};
+  font-weight: ${theme.fontWeight.bold};
+  display: flex;
+  align-items: center;
+  gap: ${theme.spacing.md};
   margin: 0;
 `;
 
-const BackButton = styled(motion.button)`
-  display: flex;
-  align-items: center;
-  gap: ${theme.spacing.sm};
-  padding: ${theme.spacing.sm} ${theme.spacing.md};
-  background: ${theme.colors.surface};
-  border: 1px solid ${theme.colors.border};
-  border-radius: ${theme.borderRadius.md};
-  color: ${theme.colors.text};
-  cursor: pointer;
-  font-size: ${theme.fontSize.sm};
+const SearchContainer = styled.div`
+  position: relative;
+  flex: 1;
+  max-width: 400px;
+`;
 
-  &:hover {
-    background: ${theme.colors.background};
+const SearchInput = styled.input`
+  width: 100%;
+  padding: ${theme.spacing.sm} ${theme.spacing.md} ${theme.spacing.sm} ${theme.spacing.xl};
+  border: 2px solid ${theme.colors.border};
+  border-radius: ${theme.borderRadius.lg};
+  font-size: ${theme.fontSize.md};
+  background: ${theme.colors.surface};
+  color: ${theme.colors.text};
+  transition: border-color ${theme.transitions.fast};
+
+  &:focus {
+    outline: none;
+    border-color: ${theme.colors.primary};
+  }
+
+  &::placeholder {
+    color: ${theme.colors.textSecondary};
   }
 `;
 
-const TabsContainer = styled.div`
-  display: flex;
-  gap: ${theme.spacing.md};
-  margin-bottom: ${theme.spacing.xl};
-  border-bottom: 1px solid ${theme.colors.border};
+const SearchIcon = styled.div`
+  position: absolute;
+  left: ${theme.spacing.sm};
+  top: 50%;
+  transform: translateY(-50%);
+  color: ${theme.colors.textSecondary};
 `;
 
-const Tab = styled(motion.button)<{ active: boolean }>`
-  padding: ${theme.spacing.md} ${theme.spacing.lg};
-  background: none;
+const CreateButton = styled(motion.button)`
+  display: flex;
+  align-items: center;
+  gap: ${theme.spacing.sm};
+  padding: ${theme.spacing.sm} ${theme.spacing.lg};
+  background: linear-gradient(135deg, ${theme.colors.primary}, ${theme.colors.primaryLight});
+  color: white;
   border: none;
-  border-bottom: 2px solid ${props => props.active ? theme.colors.primary : 'transparent'};
-  color: ${props => props.active ? theme.colors.primary : theme.colors.textSecondary};
-  font-weight: ${theme.fontWeight.medium};
+  border-radius: ${theme.borderRadius.lg};
+  font-size: ${theme.fontSize.md};
+  font-weight: ${theme.fontWeight.semibold};
   cursor: pointer;
   transition: all ${theme.transitions.fast};
 
   &:hover {
-    color: ${theme.colors.primary};
+    transform: translateY(-2px);
+    box-shadow: ${theme.shadows.lg};
   }
 `;
 
-const Card = styled(motion.div)`
-  background: ${theme.colors.surface};
-  border-radius: ${theme.borderRadius.lg};
-  box-shadow: ${theme.shadows.sm};
-  overflow: hidden;
-  border: 1px solid ${theme.colors.border};
-`;
-
-const CardHeader = styled.div`
-  padding: ${theme.spacing.lg};
-  border-bottom: 1px solid ${theme.colors.border};
-  display: flex;
-  justify-content: between;
-  align-items: center;
-`;
-
-const CardTitle = styled.h2`
-  font-size: ${theme.fontSize.lg};
-  margin: 0;
-  color: ${theme.colors.text};
-  display: flex;
-  align-items: center;
-  gap: ${theme.spacing.sm};
-`;
 
 const Button = styled(motion.button)`
   padding: ${theme.spacing.sm} ${theme.spacing.md};
@@ -163,9 +154,6 @@ const MetaRow = styled.div`
   gap: ${theme.spacing.xs};
 `;
 
-const StudentsList = styled.div`
-  padding: ${theme.spacing.lg};
-`;
 
 const StudentItem = styled.div`
   padding: ${theme.spacing.md};
@@ -293,278 +281,332 @@ const EmptyState = styled.div`
   color: ${theme.colors.textSecondary};
 `;
 
-interface AcademyFormData {
-  name: string;
+interface PromoteUserData {
   address: string;
   number: string;
 }
 
 export const Admin: React.FC = () => {
-  const [activeTab, setActiveTab] = useState<'academies' | 'students'>('academies');
+  const navigate = useNavigate();
+  const { user } = useAuth();
   const [academies, setAcademies] = useState<User[]>([]);
-  const [selectedAcademy, setSelectedAcademy] = useState<User | null>(null);
+  const [filteredAcademies, setFilteredAcademies] = useState<User[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [showPromoteModal, setShowPromoteModal] = useState(false);
   const [students, setStudents] = useState<User[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [showCreateModal, setShowCreateModal] = useState(false);
-  const [formData, setFormData] = useState<AcademyFormData>({
-    name: '',
+  const [filteredStudents, setFilteredStudents] = useState<User[]>([]);
+  const [studentSearchQuery, setStudentSearchQuery] = useState('');
+  const [selectedStudent, setSelectedStudent] = useState<User | null>(null);
+  const [promoteData, setPromoteData] = useState<PromoteUserData>({
     address: '',
     number: '',
   });
 
-  const loadAcademies = async () => {
-    setLoading(true);
+  // Redirect if not admin
+  useEffect(() => {
+    if (user && user.type !== 'admin') {
+      navigate('/');
+    }
+  }, [user, navigate]);
+
+  const fetchAcademies = async () => {
     try {
+      setLoading(true);
       const data = await dataService.getAllAcademies();
-      setAcademies(data);
+      setAcademies(data || []);
+      setFilteredAcademies(data || []);
     } catch (error) {
-      console.error('Error loading academies:', error);
+      console.error('Error fetching academies:', error);
     } finally {
       setLoading(false);
     }
   };
 
-  const loadStudents = async (academyId: string) => {
-    setLoading(true);
+  const fetchStudents = async () => {
     try {
-      const data = await dataService.getAcademyStudents(academyId);
-      setStudents(data);
+      setLoading(true);
+      const data = await dataService.getAllStudents();
+      setStudents(data || []);
+      setFilteredStudents(data || []);
     } catch (error) {
-      console.error('Error loading students:', error);
+      console.error('Error fetching students:', error);
     } finally {
       setLoading(false);
     }
   };
 
-  const handleAcademyClick = (academy: User) => {
-    setSelectedAcademy(academy);
-    setActiveTab('students');
-    loadStudents(academy.id);
+  const handleAcademyClick = (academyId: string) => {
+    navigate(`/admin/academy/${academyId}`);
   };
 
-  const handleCreateAcademy = async (e: React.FormEvent) => {
+  const handleCreateAcademyButton = () => {
+    setShowPromoteModal(true);
+    fetchStudents();
+  };
+
+  const handlePromoteUser = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!selectedStudent) return;
+
     setLoading(true);
     try {
-      await dataService.createAcademy(formData);
-      setShowCreateModal(false);
-      setFormData({ name: '', address: '', number: '' });
-      loadAcademies();
+      await dataService.promoteUserToAcademy(selectedStudent.id, promoteData);
+      setShowPromoteModal(false);
+      setSelectedStudent(null);
+      setPromoteData({ address: '', number: '' });
+      setStudentSearchQuery('');
+      fetchAcademies();
     } catch (error) {
-      console.error('Error creating academy:', error);
+      console.error('Error promoting user:', error);
+      alert('Erro ao promover usuário: ' + (error instanceof Error ? error.message : 'Erro desconhecido'));
     } finally {
       setLoading(false);
     }
   };
+
 
   useEffect(() => {
-    if (activeTab === 'academies') {
-      loadAcademies();
+    if (user?.type === 'admin') {
+      fetchAcademies();
     }
-  }, [activeTab]);
+  }, [user]);
+
+  useEffect(() => {
+    if (!searchQuery) {
+      setFilteredAcademies(academies);
+    } else {
+      const filtered = academies.filter(academy =>
+        academy.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        academy.email?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        academy.address?.toLowerCase().includes(searchQuery.toLowerCase())
+      );
+      setFilteredAcademies(filtered);
+    }
+  }, [searchQuery, academies]);
+
+  useEffect(() => {
+    if (!studentSearchQuery) {
+      setFilteredStudents(students);
+    } else {
+      const filtered = students.filter(student =>
+        student.name.toLowerCase().includes(studentSearchQuery.toLowerCase()) ||
+        student.email?.toLowerCase().includes(studentSearchQuery.toLowerCase())
+      );
+      setFilteredStudents(filtered);
+    }
+  }, [studentSearchQuery, students]);
+
+  if (user?.type !== 'admin') {
+    return null;
+  }
 
   return (
     <Container>
       <Header>
         <Title>
-          {selectedAcademy ? (
-            <>
-              Alunos - {selectedAcademy.name}
-            </>
-          ) : (
-            'Administração'
-          )}
+          <Building2 size={32} />
+          Painel Administrativo
         </Title>
-        {selectedAcademy && (
-          <BackButton
-            onClick={() => {
-              setSelectedAcademy(null);
-              setActiveTab('academies');
-            }}
-            whileHover={{ scale: 1.02 }}
-            whileTap={{ scale: 0.98 }}
-          >
-            <ArrowLeft size={16} />
-            Voltar
-          </BackButton>
-        )}
+        
+        <SearchContainer>
+          <SearchIcon>
+            <Search size={20} />
+          </SearchIcon>
+          <SearchInput
+            type="text"
+            placeholder="Buscar academias..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+          />
+        </SearchContainer>
+
+        <CreateButton
+          onClick={handleCreateAcademyButton}
+          whileTap={{ scale: 0.95 }}
+        >
+          <Plus size={20} />
+          Criar Academia
+        </CreateButton>
       </Header>
 
-      {!selectedAcademy && (
-        <TabsContainer>
-          <Tab
-            active={activeTab === 'academies'}
-            onClick={() => setActiveTab('academies')}
-            whileTap={{ scale: 0.98 }}
-          >
-            Academias
-          </Tab>
-        </TabsContainer>
+      {loading ? (
+        <LoadingSpinner>
+          Carregando academias...
+        </LoadingSpinner>
+      ) : filteredAcademies.length === 0 ? (
+        <EmptyState>
+          {searchQuery ? (
+            <div>
+              <Building2 size={48} color={theme.colors.textSecondary} />
+              <p>Nenhuma academia encontrada para "{searchQuery}"</p>
+            </div>
+          ) : (
+            <div>
+              <Building2 size={48} color={theme.colors.textSecondary} />
+              <p>Nenhuma academia cadastrada ainda.</p>
+              <p>Clique em "Criar Academia" para começar.</p>
+            </div>
+          )}
+        </EmptyState>
+      ) : (
+        <AcademyList>
+          {filteredAcademies.map((academy) => (
+            <AcademyItem
+              key={academy.id}
+              onClick={() => handleAcademyClick(academy.id)}
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.3 }}
+            >
+              <AcademyInfo>
+                <AcademyName>{academy.name}</AcademyName>
+                <AcademyMeta>
+                  {academy.email && (
+                    <MetaRow>
+                      <Mail size={14} />
+                      {academy.email}
+                    </MetaRow>
+                  )}
+                  {academy.number && (
+                    <MetaRow>
+                      <Phone size={14} />
+                      {academy.number}
+                    </MetaRow>
+                  )}
+                  {academy.address && (
+                    <MetaRow>
+                      <MapPin size={14} />
+                      {academy.address}
+                    </MetaRow>
+                  )}
+                </AcademyMeta>
+              </AcademyInfo>
+            </AcademyItem>
+          ))}
+        </AcademyList>
       )}
 
-      <Card
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.3 }}
-      >
-        <CardHeader>
-          <CardTitle>
-            {activeTab === 'academies' ? (
-              <>
-                <Building2 size={20} />
-                Todas as Academias Registradas
-              </>
-            ) : (
-              <>
-                <Users size={20} />
-                Alunos da Academia
-              </>
-            )}
-          </CardTitle>
-          {activeTab === 'academies' && (
-            <Button
-              onClick={() => setShowCreateModal(true)}
-              whileHover={{ scale: 1.02 }}
-              whileTap={{ scale: 0.98 }}
-            >
-              <Plus size={16} />
-              Criar Academia
-            </Button>
-          )}
-        </CardHeader>
 
-        {loading ? (
-          <LoadingSpinner>
-            Carregando...
-          </LoadingSpinner>
-        ) : (
-          <>
-            {activeTab === 'academies' && (
-              <AcademyList>
-                {academies.length === 0 ? (
-                  <EmptyState>
-                    Nenhuma academia registrada ainda.
-                  </EmptyState>
-                ) : (
-                  academies.map((academy) => (
-                    <AcademyItem
-                      key={academy.id}
-                      onClick={() => handleAcademyClick(academy)}
-                      whileHover={{ backgroundColor: theme.colors.background }}
-                      whileTap={{ scale: 0.98 }}
-                    >
-                      <AcademyInfo>
-                        <AcademyName>{academy.name}</AcademyName>
-                        <AcademyMeta>
-                          {academy.address && (
-                            <MetaRow>
-                              <MapPin size={14} />
-                              {academy.address}
-                            </MetaRow>
-                          )}
-                          {academy.number && (
-                            <MetaRow>
-                              <Phone size={14} />
-                              {academy.number}
-                            </MetaRow>
-                          )}
-                        </AcademyMeta>
-                      </AcademyInfo>
-                      <ChevronRight size={20} color={theme.colors.textSecondary} />
-                    </AcademyItem>
-                  ))
-                )}
-              </AcademyList>
-            )}
-
-            {activeTab === 'students' && (
-              <StudentsList>
-                {students.length === 0 ? (
-                  <EmptyState>
-                    Nenhum aluno vinculado a esta academia ainda.
-                  </EmptyState>
-                ) : (
-                  students.map((student) => (
-                    <StudentItem key={student.id}>
-                      <StudentInfo>
-                        <StudentName>{student.name}</StudentName>
-                        <StudentMeta>
-                          {student.number && `${student.number} • `}
-                          {student.gender && `${student.gender} • `}
-                          {student.birth_date && `Nascimento: ${new Date(student.birth_date).toLocaleDateString()}`}
-                        </StudentMeta>
-                      </StudentInfo>
-                    </StudentItem>
-                  ))
-                )}
-              </StudentsList>
-            )}
-          </>
-        )}
-      </Card>
-
-      {/* Create Academy Modal */}
-      {showCreateModal && (
+      {/* Promote User to Academy Modal */}
+      {showPromoteModal && (
         <Modal
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
-          onClick={(e) => e.target === e.currentTarget && setShowCreateModal(false)}
+          onClick={(e) => e.target === e.currentTarget && setShowPromoteModal(false)}
         >
           <ModalContent
             initial={{ opacity: 0, scale: 0.9 }}
             animate={{ opacity: 1, scale: 1 }}
             exit={{ opacity: 0, scale: 0.9 }}
           >
-            <ModalTitle>Criar Nova Academia</ModalTitle>
-            <Form onSubmit={handleCreateAcademy}>
+            <ModalTitle>Promover Usuário para Academia</ModalTitle>
+            
+            {!selectedStudent ? (
               <div>
-                <label>Nome da Academia *</label>
-                <Input
-                  type="text"
-                  value={formData.name}
-                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                  required
-                  placeholder="Nome da academia"
-                />
+                <label>Buscar Usuário</label>
+                <SearchContainer>
+                  <SearchIcon>
+                    <Search size={20} />
+                  </SearchIcon>
+                  <SearchInput
+                    type="text"
+                    placeholder="Digite o nome do usuário..."
+                    value={studentSearchQuery}
+                    onChange={(e) => setStudentSearchQuery(e.target.value)}
+                  />
+                </SearchContainer>
+                
+                <div style={{ maxHeight: '300px', overflowY: 'auto', marginTop: '16px' }}>
+                  {filteredStudents.map((student) => (
+                    <StudentItem
+                      key={student.id}
+                      onClick={() => setSelectedStudent(student)}
+                      style={{ cursor: 'pointer', backgroundColor: 'transparent' }}
+                    >
+                      <StudentInfo>
+                        <StudentName>{student.name}</StudentName>
+                        <StudentMeta>{student.email}</StudentMeta>
+                      </StudentInfo>
+                    </StudentItem>
+                  ))}
+                  
+                  {filteredStudents.length === 0 && studentSearchQuery && (
+                    <EmptyState>
+                      <Users size={48} color={theme.colors.textSecondary} />
+                      <p>Nenhum usuário encontrado para "{studentSearchQuery}"</p>
+                    </EmptyState>
+                  )}
+                </div>
+                
+                <ButtonGroup>
+                  <SecondaryButton
+                    type="button"
+                    onClick={() => {
+                      setShowPromoteModal(false);
+                      setStudentSearchQuery('');
+                    }}
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
+                  >
+                    Cancelar
+                  </SecondaryButton>
+                </ButtonGroup>
               </div>
-              <div>
-                <label>Endereço *</label>
-                <Textarea
-                  value={formData.address}
-                  onChange={(e) => setFormData({ ...formData, address: e.target.value })}
-                  required
-                  placeholder="Endereço completo da academia"
-                />
-              </div>
-              <div>
-                <label>Contato</label>
-                <Input
-                  type="text"
-                  value={formData.number}
-                  onChange={(e) => setFormData({ ...formData, number: e.target.value })}
-                  placeholder="Telefone de contato"
-                />
-              </div>
-              <ButtonGroup>
-                <SecondaryButton
-                  type="button"
-                  onClick={() => setShowCreateModal(false)}
-                  whileHover={{ scale: 1.02 }}
-                  whileTap={{ scale: 0.98 }}
-                >
-                  Cancelar
-                </SecondaryButton>
-                <Button
-                  type="submit"
-                  disabled={loading}
-                  whileHover={{ scale: 1.02 }}
-                  whileTap={{ scale: 0.98 }}
-                >
-                  {loading ? 'Criando...' : 'Criar Academia'}
-                </Button>
-              </ButtonGroup>
-            </Form>
+            ) : (
+              <Form onSubmit={handlePromoteUser}>
+                <div>
+                  <label>Usuário Selecionado</label>
+                  <div style={{ padding: '12px', backgroundColor: theme.colors.background, borderRadius: '8px', marginBottom: '16px' }}>
+                    <strong>{selectedStudent.name}</strong>
+                    <div style={{ fontSize: '14px', color: theme.colors.textSecondary }}>{selectedStudent.email}</div>
+                  </div>
+                </div>
+                
+                <div>
+                  <label>Telefone da Academia</label>
+                  <Input
+                    type="text"
+                    value={promoteData.number}
+                    onChange={(e) => setPromoteData({ ...promoteData, number: e.target.value })}
+                    placeholder="(11) 99999-9999"
+                  />
+                </div>
+                
+                <div>
+                  <label>Endereço da Academia *</label>
+                  <Textarea
+                    value={promoteData.address}
+                    onChange={(e) => setPromoteData({ ...promoteData, address: e.target.value })}
+                    required
+                    placeholder="Endereço completo da academia"
+                  />
+                </div>
+                
+                <ButtonGroup>
+                  <SecondaryButton
+                    type="button"
+                    onClick={() => {
+                      setSelectedStudent(null);
+                      setPromoteData({ address: '', number: '' });
+                    }}
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
+                  >
+                    Voltar
+                  </SecondaryButton>
+                  <Button
+                    type="submit"
+                    disabled={loading}
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
+                  >
+                    {loading ? 'Promovendo...' : 'Promover para Academia'}
+                  </Button>
+                </ButtonGroup>
+              </Form>
+            )}
           </ModalContent>
         </Modal>
       )}

@@ -16,7 +16,7 @@ import { Calendar } from './pages/Calendar/Calendar';
 import { Recipes } from './pages/Recipes/Recipes';
 import { Coupons } from './pages/Coupons/Coupons';
 import { Profile } from './pages/Profile/Profile';
-import { Admin } from './pages/Admin/Admin';
+import { Admin, AcademyDetails } from './pages/Admin';
 
 const PrivateRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { user, loading } = useAuth();
@@ -83,6 +83,11 @@ const AppRoutes: React.FC = () => {
         <Route path="admin" element={
           <ProtectedRoute requiredUserType="admin">
             <Admin />
+          </ProtectedRoute>
+        } />
+        <Route path="admin/academy/:academyId" element={
+          <ProtectedRoute requiredUserType="admin">
+            <AcademyDetails />
           </ProtectedRoute>
         } />
       </Route>

@@ -5,11 +5,10 @@
       "args": [
         "-y",
         "@supabase/mcp-server-supabase@latest",
-        "--read-only",
         "--project-ref=chuonriqolshpejkovub"
       ],
       "env": {
-        "SUPABASE_ACCESS_TOKEN": "sbp_7a3b21c7591378e15aee7ccd741a89579b700b6a"
+        "SUPABASE_ACCESS_TOKEN": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNodW9ucmlxb2xzaHBlamtvdnViIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc1NzUwOTE5MiwiZXhwIjoyMDczMDg1MTkyfQ.8A99-0N_tt5qMbDkLpj_rmrXoeKLvUESySnknz-0oLk"
       }
     }
   }
