@@ -108,6 +108,11 @@ const globalStyles = css`
     background: ${theme.colors.primaryDark};
   }
 
+  @keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+  }
+
   @media (max-width: ${theme.breakpoints.sm}) {
     html {
       font-size: 14px;

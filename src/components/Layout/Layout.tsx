@@ -12,7 +12,8 @@ import {
   Target,
   Calendar,
   ChefHat,
-  Ticket
+  Ticket,
+  Settings
 } from 'lucide-react';
 import { theme } from '../../styles/theme';
 import { useAuth } from '../../contexts/AuthContext';
@@ -234,18 +235,27 @@ export const Layout: React.FC = () => {
     navigate('/login');
   };
 
-  const navItems = [
-    { path: '/', icon: Home, label: 'Dashboard' },
-    { path: '/workouts', icon: Dumbbell, label: 'Treinos' },
-    { path: '/nutrition', icon: Utensils, label: 'Nutrição' },
-    { path: '/progress', icon: TrendingUp, label: 'Progresso' },
-    { path: '/challenges', icon: Trophy, label: 'Desafios' },
-    { path: '/goals', icon: Target, label: 'Metas' },
-    { path: '/calendar', icon: Calendar, label: 'Calendário' },
-    { path: '/recipes', icon: ChefHat, label: 'Receitas' },
-    { path: '/coupons', icon: Ticket, label: 'Cupons' },
-    { path: '/profile', icon: User, label: 'Perfil' },
-  ];
+  const getNavItems = () => {
+    const baseItems = [
+      { path: '/', icon: Home, label: 'Dashboard' },
+      { path: '/workouts', icon: Dumbbell, label: 'Treinos' },
+      { path: '/nutrition', icon: Utensils, label: 'Nutrição' },
+      { path: '/progress', icon: TrendingUp, label: 'Progresso' },
+      { path: '/challenges', icon: Trophy, label: 'Desafios' },
+      { path: '/goals', icon: Target, label: 'Metas' },
+      { path: '/calendar', icon: Calendar, label: 'Calendário' },
+      { path: '/recipes', icon: ChefHat, label: 'Receitas' },
+      { path: '/coupons', icon: Ticket, label: 'Cupons' },
+      { path: '/profile', icon: User, label: 'Perfil' },
+    ];
+
+    // Add admin link for admin users
+    if (user?.type === 'admin') {
+      baseItems.push({ path: '/admin', icon: Settings, label: 'Administração' });
+    }
+
+    return baseItems;
+  };
 
   return (
     <Container>
@@ -265,7 +275,7 @@ export const Layout: React.FC = () => {
       <Sidebar>
         <Logo>FitLevel</Logo>
         <Nav>
-          {navItems.map((item) => (
+          {getNavItems().map((item) => (
             <NavItem key={item.path} to={item.path}>
               <item.icon />
               <span>{item.label}</span>

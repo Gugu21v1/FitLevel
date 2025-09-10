@@ -3,7 +3,7 @@ import styled from '@emotion/styled';
 import { motion } from 'framer-motion';
 import { useNavigate, Link } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
-import { Eye, EyeOff, Mail, Lock } from 'lucide-react';
+import { Eye, EyeOff, Mail, Lock, User } from 'lucide-react';
 import { theme } from '../../styles/theme';
 import { useAuth } from '../../contexts/AuthContext';
 
@@ -59,7 +59,7 @@ const InputIcon = styled.div`
   left: ${theme.spacing.md};
   top: 50%;
   transform: translateY(-50%);
-  color: ${theme.colors.text};
+  color: ${theme.colors.textSecondary};
   display: flex;
   align-items: center;
 `;
@@ -72,7 +72,7 @@ const Input = styled.input`
   font-size: ${theme.fontSize.md};
   transition: all ${theme.transitions.fast};
   background: ${theme.colors.background};
-  color: ${theme.colors.text};
+  color:  ${theme.colors.text};
 
   &:focus {
     outline: none;
@@ -132,16 +132,14 @@ const ErrorMessage = styled.div`
   margin-top: ${theme.spacing.xs};
 `;
 
-const ForgotPassword = styled(Link)`
-  text-align: right;
-  color: ${theme.colors.primary};
+const SuccessMessage = styled.div`
+  color: ${theme.colors.success || '#22c55e'};
   font-size: ${theme.fontSize.sm};
-  text-decoration: none;
-  transition: color ${theme.transitions.fast};
-
-  &:hover {
-    color: ${theme.colors.primaryDark};
-  }
+  margin-top: ${theme.spacing.xs};
+  background: ${theme.colors.success ? theme.colors.success + '10' : '#22c55e10'};
+  padding: ${theme.spacing.sm};
+  border-radius: ${theme.borderRadius.md};
+  border: 1px solid ${theme.colors.success || '#22c55e'};
 `;
 
 const Divider = styled.div`
@@ -164,7 +162,7 @@ const Divider = styled.div`
   }
 `;
 
-const SignUpLink = styled.div`
+const SignInLink = styled.div`
   text-align: center;
   color: ${theme.colors.textSecondary};
   font-size: ${theme.fontSize.md};
@@ -181,41 +179,52 @@ const SignUpLink = styled.div`
   }
 `;
 
-interface LoginForm {
+interface SignUpForm {
+  name: string;
   email: string;
   password: string;
+  confirmPassword: string;
 }
 
-export const Login: React.FC = () => {
+export const SignUp: React.FC = () => {
   const navigate = useNavigate();
-  const { signIn } = useAuth();
+  const { signUp } = useAuth();
   const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [success, setSuccess] = useState('');
 
-  const { register, handleSubmit, formState: { errors } } = useForm<LoginForm>();
+  const { register, handleSubmit, watch, formState: { errors } } = useForm<SignUpForm>();
+  const password = watch('password');
 
-  const onSubmit = async (data: LoginForm) => {
+  const onSubmit = async (data: SignUpForm) => {
     setLoading(true);
     setError('');
     
     try {
-      await signIn(data.email, data.password);
-      navigate('/');
-    } catch (err: unknown) {
-      let errorMessage = 'Erro ao fazer login. Tente novamente.';
+      const result = await signUp(data.email, data.password, data.name);
       
-      if (err instanceof Error) {
-        if (err.message.includes('email_not_confirmed')) {
-          errorMessage = 'Email não confirmado. Verifique sua caixa de entrada.';
-        } else if (err.message.includes('invalid_credentials')) {
-          errorMessage = 'Email ou senha incorretos.';
-        } else {
-          errorMessage = err.message;
-        }
+      // Check if email confirmation is required
+      if (result?.user && !result.user.email_confirmed_at) {
+        // User created but needs email confirmation
+        setError('');
+        setSuccess('Conta criada com sucesso! Verifique seu email para confirmar a conta.');
+        setLoading(false);
+        // Redirect to login after showing success message
+        setTimeout(() => {
+          navigate('/login');
+        }, 3000);
+        return;
+      } else if (result?.user?.email_confirmed_at) {
+        // User created and confirmed, redirect to dashboard
+        navigate('/');
+      } else {
+        // Fallback - redirect to login
+        navigate('/login');
       }
-      
-      setError(errorMessage);
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Erro ao criar conta. Tente novamente.');
     } finally {
       setLoading(false);
     }
@@ -230,10 +239,28 @@ export const Login: React.FC = () => {
       >
         <Logo>
           <LogoText>FitLevel</LogoText>
-          <Subtitle>Seu parceiro fitness</Subtitle>
+          <Subtitle>Crie sua conta</Subtitle>
         </Logo>
 
         <Form onSubmit={handleSubmit(onSubmit)}>
+          <InputGroup>
+            <InputIcon>
+              <User size={20} />
+            </InputIcon>
+            <Input
+              type="text"
+              placeholder="Nome completo"
+              {...register('name', {
+                required: 'Nome é obrigatório',
+                minLength: {
+                  value: 3,
+                  message: 'Nome deve ter pelo menos 3 caracteres'
+                }
+              })}
+            />
+            {errors.name && <ErrorMessage>{errors.name.message}</ErrorMessage>}
+          </InputGroup>
+
           <InputGroup>
             <InputIcon>
               <Mail size={20} />
@@ -276,18 +303,36 @@ export const Login: React.FC = () => {
             {errors.password && <ErrorMessage>{errors.password.message}</ErrorMessage>}
           </InputGroup>
 
-          <ForgotPassword to="/forgot-password">
-            Esqueceu sua senha?
-          </ForgotPassword>
+          <InputGroup>
+            <InputIcon>
+              <Lock size={20} />
+            </InputIcon>
+            <Input
+              type={showConfirmPassword ? 'text' : 'password'}
+              placeholder="Confirmar senha"
+              {...register('confirmPassword', {
+                required: 'Confirmação de senha é obrigatória',
+                validate: value => value === password || 'As senhas não coincidem'
+              })}
+            />
+            <PasswordToggle
+              type="button"
+              onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+            >
+              {showConfirmPassword ? <EyeOff size={20} /> : <Eye size={20} />}
+            </PasswordToggle>
+            {errors.confirmPassword && <ErrorMessage>{errors.confirmPassword.message}</ErrorMessage>}
+          </InputGroup>
 
           {error && <ErrorMessage>{error}</ErrorMessage>}
+          {success && <SuccessMessage>{success}</SuccessMessage>}
 
           <Button
             type="submit"
             disabled={loading}
             whileTap={{ scale: 0.95 }}
           >
-            {loading ? 'Entrando...' : 'Entrar'}
+            {loading ? 'Criando conta...' : 'Criar conta'}
           </Button>
         </Form>
 
@@ -295,9 +340,9 @@ export const Login: React.FC = () => {
           <span>ou</span>
         </Divider>
 
-        <SignUpLink>
-          Não tem uma conta? <Link to="/signup">Cadastre-se</Link>
-        </SignUpLink>
+        <SignInLink>
+          Já tem uma conta? <Link to="/login">Entrar</Link>
+        </SignInLink>
       </Card>
     </Container>
   );

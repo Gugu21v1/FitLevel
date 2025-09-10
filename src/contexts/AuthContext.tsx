@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { authService } from '../services/supabase';
-import { User } from '../types';
+import type { User } from '../types';
 
 interface AuthContextType {
   user: User | null;
@@ -13,6 +13,7 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
+// eslint-disable-next-line react-refresh/only-export-components
 export const useAuth = () => {
   const context = useContext(AuthContext);
   if (!context) {
@@ -30,17 +31,26 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       try {
         const currentUser = await authService.getCurrentUser();
         if (currentUser) {
+          // Detect admin users by email
+          const isAdmin = currentUser.email === 'fitlevel2025@gmail.com' || 
+                         currentUser.email === 'admin@fitlevel.com';
+          
           setUser({
             id: currentUser.id,
             email: currentUser.email!,
-            name: currentUser.user_metadata?.name || '',
+            name: currentUser.user_metadata?.name || currentUser.email?.split('@')[0] || 'Usuário',
+            type: isAdmin ? 'admin' : 'aluno',
+            status: 'ativo',
             avatar: currentUser.user_metadata?.avatar,
             createdAt: new Date(currentUser.created_at),
             updatedAt: new Date(currentUser.updated_at || currentUser.created_at),
           });
+        } else {
+          setUser(null);
         }
       } catch (error) {
         console.error('Error checking auth:', error);
+        setUser(null);
       } finally {
         setLoading(false);
       }
@@ -48,12 +58,18 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     checkUser();
 
-    const { data: { subscription } } = authService.onAuthStateChange((user) => {
+    const { data: { subscription } } = authService.onAuthStateChange((user: any) => {
       if (user) {
+        // Detect admin users by email
+        const isAdmin = user.email === 'fitlevel2025@gmail.com' || 
+                       user.email === 'admin@fitlevel.com';
+
         setUser({
           id: user.id,
           email: user.email!,
-          name: user.user_metadata?.name || '',
+          name: user.user_metadata?.name || user.email?.split('@')[0] || 'Usuário',
+          type: isAdmin ? 'admin' : 'aluno',
+          status: 'ativo',
           avatar: user.user_metadata?.avatar,
           createdAt: new Date(user.created_at),
           updatedAt: new Date(user.updated_at || user.created_at),
@@ -67,11 +83,22 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, []);
 
   const signIn = async (email: string, password: string) => {
-    await authService.signIn(email, password);
+    try {
+      await authService.signIn(email, password);
+    } catch (error) {
+      console.error('Sign in error:', error);
+      throw error;
+    }
   };
 
   const signUp = async (email: string, password: string, name: string) => {
-    await authService.signUp(email, password, name);
+    try {
+      const result = await authService.signUp(email, password, name);
+      return result;
+    } catch (error) {
+      console.error('SignUp error in AuthContext:', error);
+      throw error;
+    }
   };
 
   const signOut = async () => {

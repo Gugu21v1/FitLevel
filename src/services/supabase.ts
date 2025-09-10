@@ -20,6 +20,32 @@ export const authService = {
     });
     
     if (error) throw error;
+    
+    // Create profile in database if user was created successfully
+    if (data.user) {
+      try {
+        const { error: profileError } = await supabase
+          .from('profiles')
+          .insert({
+            id: data.user.id,
+            name: name,
+            email: email,
+            type: 'aluno',
+            status: 'ativo'
+            // academy_id will be null initially and can be assigned later by admin
+          });
+        
+        if (profileError && profileError.code !== '23505') { // 23505 = duplicate key error
+          console.error('Error creating profile:', profileError);
+          // Don't throw here, user is already created in auth
+        } else if (!profileError) {
+          console.log('Profile created successfully for user:', data.user.id);
+        }
+      } catch (profileError) {
+        console.error('Error creating profile:', profileError);
+      }
+    }
+    
     return data;
   },
 
@@ -49,14 +75,145 @@ export const authService = {
   },
 
   onAuthStateChange(callback: (user: any) => void) {
-    return supabase.auth.onAuthStateChange((event, session) => {
+    return supabase.auth.onAuthStateChange(async (event, session) => {
       callback(session?.user || null);
     });
+  },
+
+  async getProfile(userId: string) {
+    const { data, error } = await supabase
+      .from('profiles')
+      .select('*')
+      .eq('id', userId)
+      .single();
+    
+    if (error && error.code !== 'PGRST116') throw error; // PGRST116 = not found
+    return data;
+  },
+
+  async ensureProfile(user: any) {
+    try {
+      // Check if profile already exists
+      const existingProfile = await this.getProfile(user.id);
+
+      if (!existingProfile) {
+        // Create profile if it doesn't exist
+        const { error: profileError } = await supabase
+          .from('profiles')
+          .insert({
+            id: user.id,
+            name: user.user_metadata?.name || user.email?.split('@')[0] || 'Usuário',
+            type: 'aluno',
+            email: user.email,
+            status: 'ativo'
+            // academy_id will be null initially and can be assigned later by admin
+          });
+
+        if (profileError && profileError.code !== '23505') { // 23505 = duplicate key error
+          console.error('Error creating profile:', profileError);
+          return null;
+        } else if (!profileError) {
+          console.log('Profile created successfully in ensureProfile');
+          // Return the newly created profile
+          return await this.getProfile(user.id);
+        }
+      }
+      return existingProfile;
+    } catch (error) {
+      console.error('Error ensuring profile:', error);
+      return null;
+    }
   },
 };
 
 // Serviços de dados
 export const dataService = {
+  // Profiles
+  async getProfile(userId: string) {
+    const { data, error } = await supabase
+      .from('profiles')
+      .select('*')
+      .eq('id', userId)
+      .single();
+    
+    if (error && error.code !== 'PGRST116') throw error;
+    return data;
+  },
+
+  async updateProfile(userId: string, updates: Record<string, unknown>) {
+    const { data, error } = await supabase
+      .from('profiles')
+      .update(updates)
+      .eq('id', userId)
+      .select()
+      .single();
+    
+    if (error) throw error;
+    return data;
+  },
+
+  // Admin functions
+  async getAllAcademies() {
+    const { data, error } = await supabase
+      .from('profiles')
+      .select('*')
+      .eq('type', 'academia')
+      .order('name');
+    
+    if (error) throw error;
+    return data;
+  },
+
+  async getAcademyStudents(academyId: string) {
+    const { data, error } = await supabase
+      .from('profiles')
+      .select('*')
+      .eq('type', 'aluno')
+      .eq('academy_id', academyId)
+      .order('name');
+    
+    if (error) throw error;
+    return data;
+  },
+
+  async createAcademy(academyData: { name: string; address: string; number?: string }) {
+    // Create academy profile (id will be auto-generated)
+    const { data, error } = await supabase
+      .from('profiles')
+      .insert({
+        name: academyData.name,
+        type: 'academia',
+        address: academyData.address,
+        number: academyData.number,
+      })
+      .select()
+      .single();
+    
+    if (error) throw error;
+    return data;
+  },
+
+  // Exercises
+  async getAllExercises() {
+    const { data, error } = await supabase
+      .from('exercises')
+      .select('*')
+      .order('name');
+    
+    if (error) throw error;
+    return data;
+  },
+
+  async createExercise(exerciseData: { name: string; video?: string }) {
+    const { data, error } = await supabase
+      .from('exercises')
+      .insert(exerciseData)
+      .select()
+      .single();
+    
+    if (error) throw error;
+    return data;
+  },
   // Workouts
   async getWorkouts(userId: string) {
     const { data, error } = await supabase
@@ -69,7 +226,7 @@ export const dataService = {
     return data;
   },
 
-  async createWorkout(workout: any) {
+  async createWorkout(workout: Record<string, unknown>) {
     const { data, error } = await supabase
       .from('workouts')
       .insert(workout)
@@ -80,7 +237,7 @@ export const dataService = {
     return data;
   },
 
-  async updateWorkout(id: string, updates: any) {
+  async updateWorkout(id: string, updates: Record<string, unknown>) {
     const { data, error } = await supabase
       .from('workouts')
       .update(updates)
@@ -104,7 +261,7 @@ export const dataService = {
     return data;
   },
 
-  async createMeal(meal: any) {
+  async createMeal(meal: Record<string, unknown>) {
     const { data, error } = await supabase
       .from('meals')
       .insert(meal)
@@ -127,7 +284,7 @@ export const dataService = {
     return data;
   },
 
-  async createBodyMetric(metric: any) {
+  async createBodyMetric(metric: Record<string, unknown>) {
     const { data, error } = await supabase
       .from('body_metrics')
       .insert(metric)

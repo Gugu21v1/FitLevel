@@ -3,9 +3,21 @@
     "allow": [
       "Bash(npx create-react-app:*)",
       "Bash(npm init:*)",
-      "Bash(npm install:*)"
+      "Bash(npm install:*)",
+      "Bash(npm run build:*)",
+      "Bash(copy \".env.example\" \".env\")",
+      "Bash(cp:*)",
+      "Bash(npm run dev:*)",
+      "Bash(npx:*)",
+      "Bash(curl:*)",
+      "Bash(set SUPABASE_ACCESS_TOKEN=sbp_7a3b21c7591378e15aee7ccd741a89579b700b6a)",
+      "mcp__supabase__get_logs"
     ],
     "deny": [],
     "ask": []
-  }
+  },
+  "enableAllProjectMcpServers": true,
+  "enabledMcpjsonServers": [
+    "supabase"
+  ]
 }

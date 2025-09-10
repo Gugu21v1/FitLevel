@@ -1,16 +1,23 @@
+export type UserType = 'aluno' | 'academia' | 'admin';
+export type UserStatus = 'ativo' | 'inativo' | 'suspenso';
+export type WorkoutDifficulty = 'iniciante' | 'intermediario' | 'avancado' | 'expert';
+
 export interface User {
   id: string;
-  email: string;
   name: string;
-  avatar?: string;
-  age?: number;
-  weight?: number;
-  height?: number;
-  goal?: 'weight_loss' | 'muscle_gain' | 'maintenance' | 'performance';
-  level?: 'beginner' | 'intermediate' | 'advanced';
-  points?: number;
-  streak?: number;
-  gym?: string;
+  type: UserType;
+  gender?: 'masculino' | 'feminino' | 'outro';
+  birth_date?: string;
+  number?: string; // Renamed from contact
+  address?: string;
+  academy_id?: string;
+  status?: UserStatus;
+  photo_url?: string;
+  notes?: string;
+  email?: string;
+  avatar?: string; // For compatibility with auth
+  streak?: number; // For gamification
+  points?: number; // For gamification
   createdAt: Date;
   updatedAt: Date;
 }
@@ -18,39 +25,40 @@ export interface User {
 export interface Exercise {
   id: string;
   name: string;
-  category: 'chest' | 'back' | 'legs' | 'shoulders' | 'arms' | 'abs' | 'cardio';
+  video?: string;
+  muscle_group?: string;
   equipment?: string;
-  videoUrl?: string;
-  instructions?: string[];
-  musclesWorked?: string[];
-}
-
-export interface WorkoutExercise {
-  id: string;
-  exerciseId: string;
-  exercise?: Exercise;
-  sets: number;
-  reps: number;
-  weight?: number;
-  restTime?: number;
-  notes?: string;
-  order: number;
+  instructions?: string;
+  created_at: Date;
 }
 
 export interface Workout {
   id: string;
-  userId: string;
+  id_profiles: string;
   name: string;
+  duration: number;
   description?: string;
-  exercises: WorkoutExercise[];
-  duration?: number;
-  caloriesBurned?: number;
-  date: Date;
-  completed: boolean;
-  createdAt: Date;
-  updatedAt: Date;
+  is_template?: boolean;
+  difficulty?: WorkoutDifficulty;
+  created_at: Date;
+  updated_at: Date;
 }
 
+export interface WorkoutExercise {
+  id: string;
+  id_workout: string;
+  id_exercise: string;
+  series: number;
+  repetitions: number;
+  weight?: number;
+  ordem?: number;
+  rest_time?: string; // Can be seconds as integer or instruction as text
+  exercise?: Exercise;
+  created_at: Date;
+  updated_at?: Date;
+}
+
+// Legacy interfaces - keeping for compatibility during transition
 export interface FoodItem {
   id: string;
   name: string;
