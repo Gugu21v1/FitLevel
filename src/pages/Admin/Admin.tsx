@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import styled from '@emotion/styled';
 import { motion } from 'framer-motion';
-import { Search, Plus, Building2, Users, MapPin, Phone, Mail } from 'lucide-react';
+import { Search, Plus, Building2, Users, MapPin, Phone, Mail, Dumbbell, Edit, Trash2 } from 'lucide-react';
 import { theme } from '../../styles/theme';
-import { dataService } from '../../services/supabase';
+import { useThemeColors } from '../../hooks/useThemeColors';
+import { dataService, workoutService } from '../../services/supabase';
 import { useAuth } from '../../contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import type { User } from '../../types';
@@ -23,9 +24,9 @@ const Header = styled.div`
   gap: ${theme.spacing.md};
 `;
 
-const Title = styled.h1`
+const Title = styled.h1<{ colors: any }>`
   font-size: ${theme.fontSize.xxl};
-  color: ${theme.colors.text};
+  color: ${props => props.colors.text};
   font-weight: ${theme.fontWeight.bold};
   display: flex;
   align-items: center;
@@ -39,14 +40,14 @@ const SearchContainer = styled.div`
   max-width: 400px;
 `;
 
-const SearchInput = styled.input`
+const SearchInput = styled.input<{ colors: any }>`
   width: 100%;
   padding: ${theme.spacing.sm} ${theme.spacing.md} ${theme.spacing.sm} ${theme.spacing.xl};
-  border: 2px solid ${theme.colors.border};
+  border: 2px solid ${props => props.colors.border};
   border-radius: ${theme.borderRadius.lg};
   font-size: ${theme.fontSize.md};
-  background: ${theme.colors.surface};
-  color: ${theme.colors.text};
+  background: ${props => props.colors.surface};
+  color: ${props => props.colors.text};
   transition: border-color ${theme.transitions.fast};
 
   &:focus {
@@ -55,16 +56,16 @@ const SearchInput = styled.input`
   }
 
   &::placeholder {
-    color: ${theme.colors.textSecondary};
+    color: ${props => props.colors.textSecondary};
   }
 `;
 
-const SearchIcon = styled.div`
+const SearchIcon = styled.div<{ colors: any }>`
   position: absolute;
   left: ${theme.spacing.sm};
   top: 50%;
   transform: translateY(-50%);
-  color: ${theme.colors.textSecondary};
+  color: ${props => props.colors.textSecondary};
 `;
 
 const CreateButton = styled(motion.button)`
@@ -112,9 +113,9 @@ const AcademyList = styled.div`
   gap: ${theme.spacing.md};
 `;
 
-const AcademyItem = styled(motion.div)`
+const AcademyItem = styled(motion.div)<{ colors: any }>`
   padding: ${theme.spacing.lg};
-  border-bottom: 1px solid ${theme.colors.border};
+  border-bottom: 1px solid ${props => props.colors.border};
   cursor: pointer;
   display: flex;
   justify-content: space-between;
@@ -122,7 +123,7 @@ const AcademyItem = styled(motion.div)`
   transition: background ${theme.transitions.fast};
 
   &:hover {
-    background: ${theme.colors.background};
+    background: ${props => props.colors.background};
   }
 
   &:last-child {
@@ -134,18 +135,18 @@ const AcademyInfo = styled.div`
   flex: 1;
 `;
 
-const AcademyName = styled.h3`
+const AcademyName = styled.h3<{ colors: any }>`
   font-size: ${theme.fontSize.md};
   margin: 0 0 ${theme.spacing.xs} 0;
-  color: ${theme.colors.text};
+  color: ${props => props.colors.text};
 `;
 
-const AcademyMeta = styled.div`
+const AcademyMeta = styled.div<{ colors: any }>`
   display: flex;
   flex-direction: column;
   gap: ${theme.spacing.xs};
   font-size: ${theme.fontSize.sm};
-  color: ${theme.colors.textSecondary};
+  color: ${props => props.colors.textSecondary};
 `;
 
 const MetaRow = styled.div`
@@ -155,9 +156,9 @@ const MetaRow = styled.div`
 `;
 
 
-const StudentItem = styled.div`
+const StudentItem = styled.div<{ colors: any }>`
   padding: ${theme.spacing.md};
-  border-bottom: 1px solid ${theme.colors.border};
+  border-bottom: 1px solid ${props => props.colors.border};
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -171,15 +172,15 @@ const StudentInfo = styled.div`
   flex: 1;
 `;
 
-const StudentName = styled.div`
+const StudentName = styled.div<{ colors: any }>`
   font-weight: ${theme.fontWeight.medium};
-  color: ${theme.colors.text};
+  color: ${props => props.colors.text};
   margin-bottom: ${theme.spacing.xs};
 `;
 
-const StudentMeta = styled.div`
+const StudentMeta = styled.div<{ colors: any }>`
   font-size: ${theme.fontSize.sm};
-  color: ${theme.colors.textSecondary};
+  color: ${props => props.colors.textSecondary};
 `;
 
 const Modal = styled(motion.div)`
@@ -195,8 +196,8 @@ const Modal = styled(motion.div)`
   z-index: 1000;
 `;
 
-const ModalContent = styled(motion.div)`
-  background: ${theme.colors.surface};
+const ModalContent = styled(motion.div)<{ colors: any }>`
+  background: ${props => props.colors.surface};
   border-radius: ${theme.borderRadius.lg};
   padding: ${theme.spacing.xl};
   width: 90%;
@@ -205,9 +206,9 @@ const ModalContent = styled(motion.div)`
   overflow-y: auto;
 `;
 
-const ModalTitle = styled.h2`
+const ModalTitle = styled.h2<{ colors: any }>`
   margin: 0 0 ${theme.spacing.lg} 0;
-  color: ${theme.colors.text};
+  color: ${props => props.colors.text};
 `;
 
 const Form = styled.form`
@@ -216,13 +217,13 @@ const Form = styled.form`
   gap: ${theme.spacing.md};
 `;
 
-const Input = styled.input`
+const Input = styled.input<{ colors: any }>`
   padding: ${theme.spacing.md};
-  border: 1px solid ${theme.colors.border};
+  border: 1px solid ${props => props.colors.border};
   border-radius: ${theme.borderRadius.md};
   font-size: ${theme.fontSize.md};
-  background: ${theme.colors.background};
-  color: ${theme.colors.text};
+  background: ${props => props.colors.background};
+  color: ${props => props.colors.text};
 
   &:focus {
     outline: none;
@@ -230,13 +231,13 @@ const Input = styled.input`
   }
 `;
 
-const Textarea = styled.textarea`
+const Textarea = styled.textarea<{ colors: any }>`
   padding: ${theme.spacing.md};
-  border: 1px solid ${theme.colors.border};
+  border: 1px solid ${props => props.colors.border};
   border-radius: ${theme.borderRadius.md};
   font-size: ${theme.fontSize.md};
-  background: ${theme.colors.background};
-  color: ${theme.colors.text};
+  background: ${props => props.colors.background};
+  color: ${props => props.colors.text};
   min-height: 100px;
   resize: vertical;
 
@@ -253,32 +254,116 @@ const ButtonGroup = styled.div`
   margin-top: ${theme.spacing.lg};
 `;
 
-const SecondaryButton = styled(motion.button)`
+const SecondaryButton = styled(motion.button)<{ colors: any }>`
   padding: ${theme.spacing.sm} ${theme.spacing.md};
-  background: ${theme.colors.background};
-  color: ${theme.colors.text};
-  border: 1px solid ${theme.colors.border};
+  background: ${props => props.colors.background};
+  color: ${props => props.colors.text};
+  border: 1px solid ${props => props.colors.border};
   border-radius: ${theme.borderRadius.md};
   font-size: ${theme.fontSize.sm};
   cursor: pointer;
 
   &:hover {
-    background: ${theme.colors.surface};
+    background: ${props => props.colors.surface};
   }
 `;
 
-const LoadingSpinner = styled.div`
+const LoadingSpinner = styled.div<{ colors: any }>`
   display: flex;
   justify-content: center;
   align-items: center;
   padding: ${theme.spacing.xl};
-  color: ${theme.colors.textSecondary};
+  color: ${props => props.colors.textSecondary};
 `;
 
-const EmptyState = styled.div`
+const EmptyState = styled.div<{ colors: any }>`
   padding: ${theme.spacing.xl};
   text-align: center;
-  color: ${theme.colors.textSecondary};
+  color: ${props => props.colors.textSecondary};
+`;
+
+const TabContainer = styled.div`
+  display: flex;
+  gap: ${theme.spacing.md};
+  margin-bottom: ${theme.spacing.xl};
+  border-bottom: 1px solid ${theme.colors.light.border};
+`;
+
+const TabButton = styled(motion.button)<{ active: boolean; colors: any }>`
+  padding: ${theme.spacing.md} ${theme.spacing.lg};
+  background: ${props => props.active ? props.colors.primary : 'transparent'};
+  color: ${props => props.active ? 'white' : props.colors.text};
+  border: none;
+  border-radius: ${theme.borderRadius.md} ${theme.borderRadius.md} 0 0;
+  font-size: ${theme.fontSize.md};
+  font-weight: ${theme.fontWeight.medium};
+  cursor: pointer;
+  transition: all ${theme.transitions.fast};
+  display: flex;
+  align-items: center;
+  gap: ${theme.spacing.sm};
+
+  &:hover {
+    background: ${props => props.active ? props.colors.primary : props.colors.surface};
+  }
+`;
+
+const ExerciseItem = styled(motion.div)<{ colors: any }>`
+  padding: ${theme.spacing.lg};
+  border-bottom: 1px solid ${props => props.colors.border};
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  transition: background ${theme.transitions.fast};
+
+  &:hover {
+    background: ${props => props.colors.background};
+  }
+
+  &:last-child {
+    border-bottom: none;
+  }
+`;
+
+const ExerciseInfo = styled.div`
+  flex: 1;
+`;
+
+const ExerciseName = styled.h3<{ colors: any }>`
+  font-size: ${theme.fontSize.md};
+  margin: 0 0 ${theme.spacing.xs} 0;
+  color: ${props => props.colors.text};
+`;
+
+const ExerciseMeta = styled.div<{ colors: any }>`
+  display: flex;
+  flex-direction: column;
+  gap: ${theme.spacing.xs};
+  font-size: ${theme.fontSize.sm};
+  color: ${props => props.colors.textSecondary};
+`;
+
+const ActionButtons = styled.div`
+  display: flex;
+  gap: ${theme.spacing.sm};
+`;
+
+const ActionButton = styled(motion.button)<{ variant: 'edit' | 'delete' }>`
+  padding: ${theme.spacing.sm};
+  background: ${props => props.variant === 'edit' ? '#4CAF50' : '#f44336'};
+  color: white;
+  border: none;
+  border-radius: ${theme.borderRadius.md};
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all ${theme.transitions.fast};
+
+  &:hover {
+    opacity: 0.9;
+    transform: scale(1.05);
+  }
 `;
 
 interface PromoteUserData {
@@ -289,6 +374,7 @@ interface PromoteUserData {
 export const Admin: React.FC = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
+  const { colors } = useThemeColors();
   const [academies, setAcademies] = useState<User[]>([]);
   const [filteredAcademies, setFilteredAcademies] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
@@ -302,6 +388,12 @@ export const Admin: React.FC = () => {
     address: '',
     number: '',
   });
+
+  // New states for tabs and exercises
+  const [activeTab, setActiveTab] = useState<'academias' | 'exercicios'>('academias');
+  const [exercises, setExercises] = useState<any[]>([]);
+  const [filteredExercises, setFilteredExercises] = useState<any[]>([]);
+  const [exerciseSearchQuery, setExerciseSearchQuery] = useState('');
 
   // Redirect if not admin
   useEffect(() => {
@@ -397,6 +489,59 @@ export const Admin: React.FC = () => {
     }
   }, [studentSearchQuery, students]);
 
+  // Fetch exercises for admin
+  const fetchExercises = async () => {
+    try {
+      setLoading(true);
+      const data = await workoutService.getAvailableExercises({ type: 'admin' });
+      const publicExercises = data.filter((exercise: any) => exercise.public);
+      setExercises(publicExercises);
+      setFilteredExercises(publicExercises);
+    } catch (error) {
+      console.error('Error fetching exercises:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Handle exercise deletion
+  const handleDeleteExercise = async (exerciseId: string) => {
+    if (!confirm('Tem certeza que deseja excluir este exercício?')) return;
+
+    try {
+      setLoading(true);
+      // Add delete exercise function to workoutService if needed
+      await workoutService.deleteExercise(exerciseId);
+      fetchExercises();
+    } catch (error) {
+      console.error('Error deleting exercise:', error);
+      alert('Erro ao excluir exercício');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Filter exercises
+  useEffect(() => {
+    if (!exerciseSearchQuery) {
+      setFilteredExercises(exercises);
+    } else {
+      const filtered = exercises.filter(exercise =>
+        exercise.name.toLowerCase().includes(exerciseSearchQuery.toLowerCase()) ||
+        exercise.muscle_group?.toLowerCase().includes(exerciseSearchQuery.toLowerCase()) ||
+        exercise.equipment?.toLowerCase().includes(exerciseSearchQuery.toLowerCase())
+      );
+      setFilteredExercises(filtered);
+    }
+  }, [exerciseSearchQuery, exercises]);
+
+  // Fetch exercises when tab changes
+  useEffect(() => {
+    if (activeTab === 'exercicios' && user?.type === 'admin') {
+      fetchExercises();
+    }
+  }, [activeTab, user]);
+
   if (user?.type !== 'admin') {
     return null;
   }
@@ -404,87 +549,181 @@ export const Admin: React.FC = () => {
   return (
     <Container>
       <Header>
-        <Title>
+        <Title colors={colors}>
           <Building2 size={32} />
           Painel Administrativo
         </Title>
         
         <SearchContainer>
-          <SearchIcon>
+          <SearchIcon colors={colors}>
             <Search size={20} />
           </SearchIcon>
           <SearchInput
+            colors={colors}
             type="text"
-            placeholder="Buscar academias..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
+            placeholder={activeTab === 'academias' ? 'Buscar academias...' : 'Buscar exercícios...'}
+            value={activeTab === 'academias' ? searchQuery : exerciseSearchQuery}
+            onChange={(e) => activeTab === 'academias' ? setSearchQuery(e.target.value) : setExerciseSearchQuery(e.target.value)}
           />
         </SearchContainer>
 
         <CreateButton
-          onClick={handleCreateAcademyButton}
+          onClick={activeTab === 'academias' ? handleCreateAcademyButton : () => navigate('/exercises/create')}
           whileTap={{ scale: 0.95 }}
         >
           <Plus size={20} />
-          Criar Academia
+          {activeTab === 'academias' ? 'Criar Academia' : 'Criar Exercício'}
         </CreateButton>
       </Header>
 
-      {loading ? (
-        <LoadingSpinner>
-          Carregando academias...
-        </LoadingSpinner>
-      ) : filteredAcademies.length === 0 ? (
-        <EmptyState>
-          {searchQuery ? (
-            <div>
-              <Building2 size={48} color={theme.colors.textSecondary} />
-              <p>Nenhuma academia encontrada para "{searchQuery}"</p>
-            </div>
-          ) : (
-            <div>
-              <Building2 size={48} color={theme.colors.textSecondary} />
-              <p>Nenhuma academia cadastrada ainda.</p>
-              <p>Clique em "Criar Academia" para começar.</p>
-            </div>
-          )}
-        </EmptyState>
+      <TabContainer>
+        <TabButton
+          active={activeTab === 'academias'}
+          colors={colors}
+          onClick={() => setActiveTab('academias')}
+          whileHover={{ scale: 1.02 }}
+          whileTap={{ scale: 0.98 }}
+        >
+          <Building2 size={20} />
+          Academias
+        </TabButton>
+        <TabButton
+          active={activeTab === 'exercicios'}
+          colors={colors}
+          onClick={() => setActiveTab('exercicios')}
+          whileHover={{ scale: 1.02 }}
+          whileTap={{ scale: 0.98 }}
+        >
+          <Dumbbell size={20} />
+          Exercícios
+        </TabButton>
+      </TabContainer>
+
+      {activeTab === 'academias' ? (
+        loading ? (
+          <LoadingSpinner colors={colors}>
+            Carregando academias...
+          </LoadingSpinner>
+        ) : filteredAcademies.length === 0 ? (
+          <EmptyState colors={colors}>
+            {searchQuery ? (
+              <div>
+                <Building2 size={48} color={colors.textSecondary} />
+                <p>Nenhuma academia encontrada para "{searchQuery}"</p>
+              </div>
+            ) : (
+              <div>
+                <Building2 size={48} color={colors.textSecondary} />
+                <p>Nenhuma academia cadastrada ainda.</p>
+                <p>Clique em "Criar Academia" para começar.</p>
+              </div>
+            )}
+          </EmptyState>
+        ) : (
+          <AcademyList>
+            {filteredAcademies.map((academy) => (
+              <AcademyItem
+                key={academy.id}
+                colors={colors}
+                onClick={() => handleAcademyClick(academy.id)}
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.3 }}
+              >
+                <AcademyInfo>
+                  <AcademyName colors={colors}>{academy.name}</AcademyName>
+                  <AcademyMeta colors={colors}>
+                    {academy.email && (
+                      <MetaRow>
+                        <Mail size={14} />
+                        {academy.email}
+                      </MetaRow>
+                    )}
+                    {academy.number && (
+                      <MetaRow>
+                        <Phone size={14} />
+                        {academy.number}
+                      </MetaRow>
+                    )}
+                    {academy.address && (
+                      <MetaRow>
+                        <MapPin size={14} />
+                        {academy.address}
+                      </MetaRow>
+                    )}
+                  </AcademyMeta>
+                </AcademyInfo>
+              </AcademyItem>
+            ))}
+          </AcademyList>
+        )
       ) : (
-        <AcademyList>
-          {filteredAcademies.map((academy) => (
-            <AcademyItem
-              key={academy.id}
-              onClick={() => handleAcademyClick(academy.id)}
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.3 }}
-            >
-              <AcademyInfo>
-                <AcademyName>{academy.name}</AcademyName>
-                <AcademyMeta>
-                  {academy.email && (
+        loading ? (
+          <LoadingSpinner colors={colors}>
+            Carregando exercícios...
+          </LoadingSpinner>
+        ) : filteredExercises.length === 0 ? (
+          <EmptyState colors={colors}>
+            {exerciseSearchQuery ? (
+              <div>
+                <Dumbbell size={48} color={colors.textSecondary} />
+                <p>Nenhum exercício encontrado para "{exerciseSearchQuery}"</p>
+              </div>
+            ) : (
+              <div>
+                <Dumbbell size={48} color={colors.textSecondary} />
+                <p>Nenhum exercício público cadastrado ainda.</p>
+                <p>Clique em "Criar Exercício" para começar.</p>
+              </div>
+            )}
+          </EmptyState>
+        ) : (
+          <AcademyList>
+            {filteredExercises.map((exercise) => (
+              <ExerciseItem
+                key={exercise.id}
+                colors={colors}
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.3 }}
+              >
+                <ExerciseInfo>
+                  <ExerciseName colors={colors}>{exercise.name}</ExerciseName>
+                  <ExerciseMeta colors={colors}>
                     <MetaRow>
-                      <Mail size={14} />
-                      {academy.email}
+                      <Dumbbell size={14} />
+                      {exercise.muscle_group}
                     </MetaRow>
-                  )}
-                  {academy.number && (
-                    <MetaRow>
-                      <Phone size={14} />
-                      {academy.number}
-                    </MetaRow>
-                  )}
-                  {academy.address && (
-                    <MetaRow>
-                      <MapPin size={14} />
-                      {academy.address}
-                    </MetaRow>
-                  )}
-                </AcademyMeta>
-              </AcademyInfo>
-            </AcademyItem>
-          ))}
-        </AcademyList>
+                    {exercise.equipment && (
+                      <MetaRow>
+                        <Users size={14} />
+                        {exercise.equipment}
+                      </MetaRow>
+                    )}
+                  </ExerciseMeta>
+                </ExerciseInfo>
+                <ActionButtons>
+                  <ActionButton
+                    variant="edit"
+                    onClick={() => navigate(`/exercises/edit/${exercise.id}`)}
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.95 }}
+                  >
+                    <Edit size={16} />
+                  </ActionButton>
+                  <ActionButton
+                    variant="delete"
+                    onClick={() => handleDeleteExercise(exercise.id)}
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.95 }}
+                  >
+                    <Trash2 size={16} />
+                  </ActionButton>
+                </ActionButtons>
+              </ExerciseItem>
+            ))}
+          </AcademyList>
+        )
       )}
 
 
@@ -497,20 +736,22 @@ export const Admin: React.FC = () => {
           onClick={(e) => e.target === e.currentTarget && setShowPromoteModal(false)}
         >
           <ModalContent
+            colors={colors}
             initial={{ opacity: 0, scale: 0.9 }}
             animate={{ opacity: 1, scale: 1 }}
             exit={{ opacity: 0, scale: 0.9 }}
           >
-            <ModalTitle>Promover Usuário para Academia</ModalTitle>
+            <ModalTitle colors={colors}>Promover Usuário para Academia</ModalTitle>
             
             {!selectedStudent ? (
               <div>
                 <label>Buscar Usuário</label>
                 <SearchContainer>
-                  <SearchIcon>
+                  <SearchIcon colors={colors}>
                     <Search size={20} />
                   </SearchIcon>
                   <SearchInput
+                    colors={colors}
                     type="text"
                     placeholder="Digite o nome do usuário..."
                     value={studentSearchQuery}
@@ -522,19 +763,20 @@ export const Admin: React.FC = () => {
                   {filteredStudents.map((student) => (
                     <StudentItem
                       key={student.id}
+                      colors={colors}
                       onClick={() => setSelectedStudent(student)}
                       style={{ cursor: 'pointer', backgroundColor: 'transparent' }}
                     >
                       <StudentInfo>
-                        <StudentName>{student.name}</StudentName>
-                        <StudentMeta>{student.email}</StudentMeta>
+                        <StudentName colors={colors}>{student.name}</StudentName>
+                        <StudentMeta colors={colors}>{student.email}</StudentMeta>
                       </StudentInfo>
                     </StudentItem>
                   ))}
                   
                   {filteredStudents.length === 0 && studentSearchQuery && (
-                    <EmptyState>
-                      <Users size={48} color={theme.colors.textSecondary} />
+                    <EmptyState colors={colors}>
+                      <Users size={48} color={colors.textSecondary} />
                       <p>Nenhum usuário encontrado para "{studentSearchQuery}"</p>
                     </EmptyState>
                   )}
@@ -542,6 +784,7 @@ export const Admin: React.FC = () => {
                 
                 <ButtonGroup>
                   <SecondaryButton
+                    colors={colors}
                     type="button"
                     onClick={() => {
                       setShowPromoteModal(false);
@@ -558,15 +801,16 @@ export const Admin: React.FC = () => {
               <Form onSubmit={handlePromoteUser}>
                 <div>
                   <label>Usuário Selecionado</label>
-                  <div style={{ padding: '12px', backgroundColor: theme.colors.background, borderRadius: '8px', marginBottom: '16px' }}>
+                  <div style={{ padding: '12px', backgroundColor: colors.background, borderRadius: '8px', marginBottom: '16px' }}>
                     <strong>{selectedStudent.name}</strong>
-                    <div style={{ fontSize: '14px', color: theme.colors.textSecondary }}>{selectedStudent.email}</div>
+                    <div style={{ fontSize: '14px', color: colors.textSecondary }}>{selectedStudent.email}</div>
                   </div>
                 </div>
                 
                 <div>
                   <label>Telefone da Academia</label>
                   <Input
+                    colors={colors}
                     type="text"
                     value={promoteData.number}
                     onChange={(e) => setPromoteData({ ...promoteData, number: e.target.value })}
@@ -577,6 +821,7 @@ export const Admin: React.FC = () => {
                 <div>
                   <label>Endereço da Academia *</label>
                   <Textarea
+                    colors={colors}
                     value={promoteData.address}
                     onChange={(e) => setPromoteData({ ...promoteData, address: e.target.value })}
                     required
@@ -586,6 +831,7 @@ export const Admin: React.FC = () => {
                 
                 <ButtonGroup>
                   <SecondaryButton
+                    colors={colors}
                     type="button"
                     onClick={() => {
                       setSelectedStudent(null);

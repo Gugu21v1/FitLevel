@@ -1,13 +1,18 @@
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
+import { ThemeProvider } from './contexts/ThemeContext';
 import { GlobalStyles } from './styles/GlobalStyles';
 import { Layout } from './components/Layout/Layout';
 import { ProtectedRoute } from './components/ProtectedRoute/ProtectedRoute';
+import { ThemeToggle } from './components/ThemeToggle/ThemeToggle';
 import { Login } from './pages/Login/Login';
 import { SignUp } from './pages/SignUp/SignUp';
 import { Dashboard } from './pages/Dashboard/Dashboard';
 import { Workouts } from './pages/Workouts/Workouts';
+import WorkoutDetails from './pages/Workouts/WorkoutDetails';
+import CreateWorkout from './pages/Workouts/CreateWorkout';
+import CreateExercise from './pages/Exercises/CreateExercise';
 import { Nutrition } from './pages/Nutrition/Nutrition';
 import { Progress } from './pages/Progress/Progress';
 import { Challenges } from './pages/Challenges/Challenges';
@@ -72,6 +77,10 @@ const AppRoutes: React.FC = () => {
       }>
         <Route index element={<Dashboard />} />
         <Route path="workouts" element={<Workouts />} />
+        <Route path="workouts/create" element={<CreateWorkout />} />
+        <Route path="workouts/:id" element={<WorkoutDetails />} />
+        <Route path="workouts/:id/edit" element={<CreateWorkout />} />
+        <Route path="exercises/create" element={<CreateExercise />} />
         <Route path="nutrition" element={<Nutrition />} />
         <Route path="progress" element={<Progress />} />
         <Route path="challenges" element={<Challenges />} />
@@ -98,10 +107,13 @@ const AppRoutes: React.FC = () => {
 function App() {
   return (
     <Router>
-      <GlobalStyles />
-      <AuthProvider>
-        <AppRoutes />
-      </AuthProvider>
+      <ThemeProvider>
+        <GlobalStyles />
+        <AuthProvider>
+          <ThemeToggle />
+          <AppRoutes />
+        </AuthProvider>
+      </ThemeProvider>
     </Router>
   );
 }

@@ -222,7 +222,6 @@ const EmptyState = styled.div`
 export const AcademyDetails: React.FC = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
-  const { colors } = useThemeColors();
   const { academyId } = useParams<{ academyId: string }>();
   
   const [academy, setAcademy] = useState<User | null>(null);

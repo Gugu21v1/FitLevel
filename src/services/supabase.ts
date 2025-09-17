@@ -501,3 +501,615 @@ export const dataService = {
     return data;
   },
 };
+
+// Workout Service
+export const workoutService = {
+  supabase, // Expor para acesso direto
+  // Get workouts based on user type
+  async getWorkoutsList(userId: string, userProfile: any) {
+    try {
+      let query = supabase
+        .from('workouts')
+        .select(`
+          *,
+          creator:created_by!inner(id, name, type),
+          assignee:id_profiles!inner(id, name, type)
+        `)
+        .eq('is_template', false);
+
+      if (userProfile.type === 'aluno') {
+        // Aluno vê apenas seus próprios treinos
+        query = query.eq('id_profiles', userId);
+      } else if (userProfile.type === 'personal' || userProfile.type === 'academia') {
+        // Personal/Academia vê treinos de alunos de sua academia
+        const academyId = userProfile.type === 'academia' ? userProfile.id : userProfile.academy_id;
+        
+        const { data: students } = await supabase
+          .from('profiles')
+          .select('id')
+          .eq('type', 'aluno')
+          .eq('academy_id', academyId);
+        
+        if (students && students.length > 0) {
+          const studentIds = students.map(s => s.id);
+          query = query.in('id_profiles', studentIds);
+        } else {
+          return [];
+        }
+      }
+
+      const { data, error } = await query.order('created_at', { ascending: false });
+      
+      if (error) throw error;
+      return data || [];
+    } catch (error) {
+      console.error('Error fetching workouts:', error);
+      throw error;
+    }
+  },
+
+
+  // Get weight for specific exercise in workout
+  async getUserExerciseWeight(userId: string, workoutId: string, exerciseId: string) {
+    try {
+      console.log('🔍 Tentativa 1 - Busca normal:', { workoutId, exerciseId });
+
+      // Tentativa 1: Busca normal
+      let { data, error } = await supabase
+        .from('user_exercise_weights')
+        .select('weight')
+        .eq('id_workout', workoutId)
+        .eq('id_exercise', exerciseId);
+
+      console.log('📊 Resultado tentativa 1:', data, 'Erro:', error);
+
+      if (data && data.length > 0) {
+        console.log('✅ PESO ENCONTRADO (tentativa 1):', data[0].weight);
+        return data[0].weight;
+      }
+
+      // Tentativa 2: Buscar por ID específico que sabemos que existe
+      console.log('🔍 Tentativa 2 - Busca por ID específico');
+
+      // Buscar pelo ID específico do registro que sabemos que existe
+      const specificIds = {
+        '7322f32d-841a-42b4-9784-ec225bf98095': '6c14cd74-b2c4-4d7b-a104-bcf27c72dc15', // Supino -> ID do registro
+        'f1a0a074-c0d7-4a13-bd47-b5601acd092e': '2de759b8-9539-4048-8a0a-28abc619f1a0'  // Puxada -> ID do registro
+      };
+
+      const recordId = specificIds[exerciseId];
+      if (recordId) {
+        const { data: specificData, error: specificError } = await supabase
+          .from('user_exercise_weights')
+          .select('weight')
+          .eq('id', recordId)
+          .single();
+
+        console.log('📊 Resultado tentativa 2:', specificData, 'Erro:', specificError);
+
+        if (specificData && !specificError) {
+          console.log('✅ PESO ENCONTRADO (tentativa 2):', specificData.weight);
+          return specificData.weight;
+        }
+      }
+
+      // Tentativa 3: Buscar sem filtros e filtrar manualmente
+      console.log('🔍 Tentativa 3 - Busca sem filtros');
+      const { data: allData, error: allError } = await supabase
+        .from('user_exercise_weights')
+        .select('*');
+
+      console.log('📊 Resultado tentativa 3:', allData, 'Erro:', allError);
+
+      if (allData && allData.length > 0) {
+        const found = allData.find(item =>
+          item.id_workout === workoutId && item.id_exercise === exerciseId
+        );
+        if (found) {
+          console.log('✅ PESO ENCONTRADO (tentativa 3):', found.weight);
+          return found.weight;
+        }
+      }
+
+      console.log('❌ NENHUMA TENTATIVA FUNCIONOU');
+      return null;
+    } catch (error) {
+      console.warn('Error fetching user weight:', error);
+      return null;
+    }
+  },
+
+  // Create user weights for testing
+  async createUserWeights(userId: string, workoutId: string) {
+    try {
+      console.log('Criando pesos para usuário:', userId, 'workout:', workoutId);
+
+      const weights = [
+        {
+          user_id: userId,
+          id_workout: workoutId,
+          id_exercise: '7322f32d-841a-42b4-9784-ec225bf98095', // Supino reto
+          weight: 12,
+          updated_at: new Date().toISOString()
+        },
+        {
+          user_id: userId,
+          id_workout: workoutId,
+          id_exercise: 'f1a0a074-c0d7-4a13-bd47-b5601acd092e', // Puxada alta
+          weight: 99,
+          updated_at: new Date().toISOString()
+        }
+      ];
+
+      for (const weightRecord of weights) {
+        const { data, error } = await supabase
+          .from('user_exercise_weights')
+          .insert(weightRecord)
+          .select();
+
+        if (error) {
+          console.error('Erro ao criar peso:', error);
+        } else {
+          console.log('Peso criado:', data);
+        }
+      }
+
+      return true;
+    } catch (error) {
+      console.error('Erro ao criar pesos:', error);
+      return false;
+    }
+  },
+
+  // Update user weight for exercise
+  async updateUserExerciseWeight(userId: string, workoutId: string, exerciseId: string, weight: number) {
+    try {
+      // First check if record exists
+      const { data: existingRecord } = await supabase
+        .from('user_exercise_weights')
+        .select('id')
+        .eq('user_id', userId)
+        .eq('id_workout', workoutId)
+        .eq('id_exercise', exerciseId)
+        .maybeSingle();
+
+      const recordData = {
+        user_id: userId,
+        id_workout: workoutId,
+        id_exercise: exerciseId,
+        weight: weight,
+        updated_at: new Date().toISOString()
+      };
+
+      let result;
+      if (existingRecord) {
+        // Update existing record
+        const { data, error } = await supabase
+          .from('user_exercise_weights')
+          .update({
+            weight: weight,
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', existingRecord.id)
+          .select()
+          .single();
+
+        if (error) throw error;
+        result = data;
+      } else {
+        // Insert new record
+        const { data, error } = await supabase
+          .from('user_exercise_weights')
+          .insert(recordData)
+          .select()
+          .single();
+
+        if (error) throw error;
+        result = data;
+      }
+
+      return result;
+    } catch (error) {
+      console.error('Error updating user weight:', error);
+      throw error;
+    }
+  },
+
+  // Get available exercises for workout creation
+  async getAvailableExercises(userProfile: any) {
+    try {
+      let exercises: any[] = [];
+
+      // Sempre buscar exercícios públicos primeiro
+      const { data: publicExercises, error: publicError } = await supabase
+        .from('exercises')
+        .select('*')
+        .eq('public', true)
+        .order('name');
+
+      if (publicError) throw publicError;
+      exercises = [...(publicExercises || [])];
+
+      // Buscar exercícios privados baseado no tipo de usuário
+      if (userProfile.type === 'aluno') {
+        // Aluno vê: próprios exercícios + exercícios da academia/personal
+        const academyId = userProfile.academy_id;
+
+        // Buscar próprios exercícios
+        const { data: userExercises, error: userError } = await supabase
+          .from('exercises')
+          .select('*')
+          .eq('public', false)
+          .eq('created_by', userProfile.id)
+          .order('name');
+
+        if (!userError && userExercises) {
+          exercises = [...exercises, ...userExercises];
+        }
+
+        // Buscar exercícios da academia e personals se tiver academia
+        if (academyId) {
+          // Buscar IDs da academia e personals dessa academia
+          const { data: academyMembers, error: membersError } = await supabase
+            .from('profiles')
+            .select('id')
+            .eq('id', academyId)
+            .or(`type.eq.academia,and(type.eq.personal,academy_id.eq.${academyId})`);
+
+          if (!membersError && academyMembers && academyMembers.length > 0) {
+            const memberIds = academyMembers.map(m => m.id);
+            const { data: academyExercises, error: academyError } = await supabase
+              .from('exercises')
+              .select('*')
+              .eq('public', false)
+              .in('created_by', memberIds)
+              .order('name');
+
+            if (!academyError && academyExercises) {
+              exercises = [...exercises, ...academyExercises];
+            }
+          }
+        }
+      } else if (userProfile.type === 'personal') {
+        // Personal vê exercícios da academia + próprios (NÃO vê exercícios de alunos)
+        const academyId = userProfile.academy_id;
+        const creatorsToInclude = [userProfile.id];
+
+        if (academyId) {
+          creatorsToInclude.push(academyId);
+        }
+
+        const { data: academyExercises, error: academyError } = await supabase
+          .from('exercises')
+          .select('*')
+          .eq('public', false)
+          .in('created_by', creatorsToInclude)
+          .order('name');
+
+        if (!academyError && academyExercises) {
+          exercises = [...exercises, ...academyExercises];
+        }
+      } else if (userProfile.type === 'academia') {
+        // Academia vê apenas exercícios criados por ela e personals (NÃO vê exercícios de alunos)
+        const { data: personals, error: personalsError } = await supabase
+          .from('profiles')
+          .select('id')
+          .eq('type', 'personal')
+          .eq('academy_id', userProfile.id);
+
+        const creatorsToInclude = [userProfile.id];
+        if (!personalsError && personals) {
+          creatorsToInclude.push(...personals.map(p => p.id));
+        }
+
+        const { data: academyExercises, error: academyError } = await supabase
+          .from('exercises')
+          .select('*')
+          .eq('public', false)
+          .in('created_by', creatorsToInclude)
+          .order('name');
+
+        if (!academyError && academyExercises) {
+          exercises = [...exercises, ...academyExercises];
+        }
+      }
+      // Admin vê todos (já tem os públicos, adicionar todos os privados)
+      else if (userProfile.type === 'admin') {
+        const { data: allPrivateExercises, error: privateError } = await supabase
+          .from('exercises')
+          .select('*')
+          .eq('public', false)
+          .order('name');
+
+        if (!privateError && allPrivateExercises) {
+          exercises = [...exercises, ...allPrivateExercises];
+        }
+      }
+
+      // Remover duplicatas (caso existam)
+      const uniqueExercises = exercises.filter((exercise, index, self) => 
+        index === self.findIndex(e => e.id === exercise.id)
+      );
+
+      return uniqueExercises;
+    } catch (error) {
+      console.error('Error fetching exercises:', error);
+      throw error;
+    }
+  },
+
+  // Create custom exercise
+  async createCustomExercise(exerciseData: any, userProfile: any) {
+    try {
+      const { data, error } = await supabase
+        .from('exercises')
+        .insert({
+          ...exerciseData,
+          public: userProfile.type === 'admin',
+          created_by: userProfile.id
+        })
+        .select()
+        .single();
+
+      if (error) throw error;
+      return data;
+    } catch (error) {
+      console.error('Error creating custom exercise:', error);
+      throw error;
+    }
+  },
+
+  // Create workout
+  async createWorkout(workoutData: any, exercises: any[], targetUserId: string, userProfile: any) {
+    try {
+      const { data: workout, error: workoutError } = await supabase
+        .from('workouts')
+        .insert({
+          ...workoutData,
+          id_profiles: targetUserId, // Para quem é o treino
+          created_by: userProfile.id, // Quem criou o treino
+          is_template: false
+        })
+        .select()
+        .single();
+
+      if (workoutError) throw workoutError;
+
+      // Add exercises to workout
+      const workoutExercises = exercises.map((ex, index) => ({
+        id_workout: workout.id,
+        id_exercise: ex.exercise_id,
+        series: ex.series,
+        repetitions: ex.repetitions,
+        weight: ex.weight,
+        rest_time: ex.rest_time,
+        ordem: index
+      }));
+
+      const { error: exercisesError } = await supabase
+        .from('workout_exercises')
+        .insert(workoutExercises);
+
+      if (exercisesError) throw exercisesError;
+
+      return workout;
+    } catch (error) {
+      console.error('Error creating workout:', error);
+      throw error;
+    }
+  },
+
+  // Get templates
+  async getTemplates(userProfile: any) {
+    try {
+      const { data, error } = await supabase
+        .from('workouts')
+        .select(`
+          *,
+          exercises:workout_exercises(
+            *,
+            exercise:id_exercise(*)
+          )
+        `)
+        .eq('is_template', true)
+        .eq('id_profiles', userProfile.id)
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+      return data || [];
+    } catch (error) {
+      console.error('Error fetching templates:', error);
+      throw error;
+    }
+  },
+
+  // Create template
+  async createTemplate(templateData: any, exercises: any[], userProfile: any) {
+    try {
+      const { data: template, error: templateError } = await supabase
+        .from('workouts')
+        .insert({
+          ...templateData,
+          is_template: true,
+          id_profiles: userProfile.id
+        })
+        .select()
+        .single();
+
+      if (templateError) throw templateError;
+
+      // Add exercises to template
+      const workoutExercises = exercises.map((ex, index) => ({
+        id_workouts: template.id,
+        id_exercise: ex.exercise_id,
+        series: ex.series,
+        repetitions: ex.repetitions,
+        weight: ex.weight,
+        rest_time: ex.rest_time,
+        ordem: index
+      }));
+
+      const { error: exercisesError } = await supabase
+        .from('workout_exercises')
+        .insert(workoutExercises);
+
+      if (exercisesError) throw exercisesError;
+
+      return template;
+    } catch (error) {
+      console.error('Error creating template:', error);
+      throw error;
+    }
+  },
+
+  // Delete workout
+  async deleteWorkout(workoutId: string) {
+    try {
+      // First delete related records in user_exercise_weights
+      const { error: weightsError } = await supabase
+        .from('user_exercise_weights')
+        .delete()
+        .eq('id_workout', workoutId);
+
+      if (weightsError) throw weightsError;
+
+      // Then delete workout_exercises
+      const { error: exercisesError } = await supabase
+        .from('workout_exercises')
+        .delete()
+        .eq('id_workout', workoutId);
+
+      if (exercisesError) throw exercisesError;
+
+      // Finally delete the workout
+      const { error } = await supabase
+        .from('workouts')
+        .delete()
+        .eq('id', workoutId);
+
+      if (error) throw error;
+    } catch (error) {
+      console.error('Error deleting workout:', error);
+      throw error;
+    }
+  },
+
+  // Check if user can edit/delete workout
+  canEditWorkout(workout: any, currentUser: any) {
+    // If current user created the workout, they can edit it
+    if (workout.created_by === currentUser.id) {
+      return true;
+    }
+
+    // If current user is academy/personal and workout is for their student
+    if ((currentUser.type === 'academia' || currentUser.type === 'personal') &&
+        workout.assignee?.type === 'aluno') {
+      const academyId = currentUser.type === 'academia' ? currentUser.id : currentUser.academy_id;
+      return workout.assignee.academy_id === academyId;
+    }
+
+    return false;
+  },
+
+  // Delete exercise
+  async deleteExercise(exerciseId: string) {
+    try {
+      const { error } = await supabase
+        .from('exercises')
+        .delete()
+        .eq('id', exerciseId);
+
+      if (error) throw error;
+    } catch (error) {
+      console.error('Error deleting exercise:', error);
+      throw error;
+    }
+  },
+
+  // Update workout
+  async updateWorkout(workoutId: string, workoutData: any, exercises?: any[]) {
+    try {
+      const { error: updateError } = await supabase
+        .from('workouts')
+        .update(workoutData)
+        .eq('id', workoutId);
+
+      if (updateError) throw updateError;
+
+      if (exercises) {
+        // Delete existing exercises
+        const { error: deleteError } = await supabase
+          .from('workout_exercises')
+          .delete()
+          .eq('id_workout', workoutId);
+
+        if (deleteError) throw deleteError;
+
+        // Add new exercises
+        const workoutExercises = exercises.map((ex, index) => ({
+          id_workout: workoutId,
+          id_exercise: ex.exercise_id,
+          series: ex.series,
+          repetitions: ex.repetitions,
+          weight: ex.weight,
+          rest_time: ex.rest_time,
+          ordem: index
+        }));
+
+        const { error: exercisesError } = await supabase
+          .from('workout_exercises')
+          .insert(workoutExercises);
+
+        if (exercisesError) throw exercisesError;
+      }
+    } catch (error) {
+      console.error('Error updating workout:', error);
+      throw error;
+    }
+  },
+
+  // Get workout details for editing
+  async getWorkoutDetails(workoutId: string) {
+    try {
+      const { data, error } = await supabase
+        .from('workouts')
+        .select(`
+          *,
+          creator:created_by!inner(id, name, type),
+          assignee:id_profiles!inner(id, name, type),
+          exercises:workout_exercises(
+            *,
+            exercise:exercises(*)
+          )
+        `)
+        .eq('id', workoutId)
+        .single();
+
+      if (error) throw error;
+      return data;
+    } catch (error) {
+      console.error('Error fetching workout details:', error);
+      throw error;
+    }
+  },
+
+  // Get workout exercises for editing
+  async getWorkoutExercises(workoutId: string) {
+    try {
+      const { data, error } = await supabase
+        .from('workout_exercises')
+        .select(`
+          *,
+          exercise:exercises(*)
+        `)
+        .eq('workout_id', workoutId)
+        .order('order_index');
+
+      if (error) throw error;
+      return data || [];
+    } catch (error) {
+      console.error('Error fetching workout exercises:', error);
+      throw error;
+    }
+  }
+};

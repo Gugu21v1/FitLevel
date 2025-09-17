@@ -9,17 +9,34 @@ export const theme = {
     error: '#F44336',
     info: '#2196F3',
     
-    background: '#F5F7FA',
-    surface: '#FFFFFF',
-    text: '#212121',
-    textSecondary: '#757575',
-    border: '#E0E0E0',
+    // Light theme colors
+    light: {
+      background: '#F8FAFC',
+      surface: '#FFFFFF',
+      surfaceSecondary: '#F1F5F9',
+      text: '#1E293B',
+      textSecondary: '#64748B',
+      textLight: '#94A3B8',
+      border: '#E2E8F0',
+      input: '#FFFFFF',
+      inputBorder: '#D1D5DB',
+      inputText: '#1F2937',
+      inputPlaceholder: '#9CA3AF',
+    },
     
+    // Dark theme colors
     dark: {
-      background: '#121212',
-      surface: '#1E1E1E',
-      text: '#FFFFFF',
-      textSecondary: '#B0B0B0',
+      background: '#0F172A',
+      surface: '#1E293B',
+      surfaceSecondary: '#334155',
+      text: '#F8FAFC',
+      textSecondary: '#CBD5E1',
+      textLight: '#94A3B8',
+      border: '#475569',
+      input: '#334155',
+      inputBorder: '#475569',
+      inputText: '#F8FAFC',
+      inputPlaceholder: '#94A3B8',
     }
   },
   

@@ -18,9 +18,20 @@ const globalStyles = css`
     font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
       'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
       sans-serif;
-    background-color: ${theme.colors.background};
-    color: ${theme.colors.text};
     line-height: 1.6;
+    transition: background-color 0.3s ease, color 0.3s ease;
+  }
+
+  /* Light theme styles */
+  [data-theme="light"] body {
+    background-color: ${theme.colors.light.background};
+    color: ${theme.colors.light.text};
+  }
+
+  /* Dark theme styles */
+  [data-theme="dark"] body {
+    background-color: ${theme.colors.dark.background};
+    color: ${theme.colors.dark.text};
   }
 
   #root {
@@ -95,8 +106,12 @@ const globalStyles = css`
     height: 8px;
   }
 
-  ::-webkit-scrollbar-track {
-    background: ${theme.colors.background};
+  [data-theme="light"] ::-webkit-scrollbar-track {
+    background: ${theme.colors.light.background};
+  }
+
+  [data-theme="dark"] ::-webkit-scrollbar-track {
+    background: ${theme.colors.dark.background};
   }
 
   ::-webkit-scrollbar-thumb {
