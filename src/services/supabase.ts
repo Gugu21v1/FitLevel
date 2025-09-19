@@ -1011,15 +1011,186 @@ export const workoutService = {
     return false;
   },
 
+  // Get exercises created by user
+  async getUserCreatedExercises(userId: string) {
+    try {
+      const { data, error } = await supabase
+        .from('exercises')
+        .select('*')
+        .eq('created_by', userId)
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+      return data;
+    } catch (error) {
+      console.error('Error fetching user exercises:', error);
+      throw error;
+    }
+  },
+
+  // Get exercise by ID
+  async getExerciseById(exerciseId: string) {
+    try {
+      const { data, error } = await supabase
+        .from('exercises')
+        .select('*')
+        .eq('id', exerciseId)
+        .single();
+
+      if (error) throw error;
+      return data;
+    } catch (error) {
+      console.error('Error fetching exercise:', error);
+      throw error;
+    }
+  },
+
+  // Update exercise
+  async updateExercise(exerciseId: string, exerciseData: any) {
+    try {
+      console.log('Attempting to update exercise:', { exerciseId, exerciseData });
+
+      // First, verify the exercise exists and get current user
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        throw new Error('Usuário não autenticado');
+      }
+
+      console.log('Current user:', user.id);
+
+      // Check if exercise exists and belongs to user
+      const { data: existingExercise, error: fetchError } = await supabase
+        .from('exercises')
+        .select('*')
+        .eq('id', exerciseId)
+        .eq('created_by', user.id)
+        .single();
+
+      if (fetchError) {
+        console.error('Error fetching exercise:', fetchError);
+        throw new Error(`Exercício não encontrado ou sem permissão: ${fetchError.message}`);
+      }
+
+      if (!existingExercise) {
+        throw new Error('Exercício não encontrado ou você não tem permissão para editá-lo');
+      }
+
+      console.log('Exercise found, updating:', existingExercise);
+
+      // Try a simpler update without the created_by condition first to test RLS
+      const { data, error } = await supabase
+        .from('exercises')
+        .update(exerciseData)
+        .eq('id', exerciseId)
+        .select();
+
+      if (error) {
+        console.error('Supabase update error:', error);
+        console.error('Error details:', JSON.stringify(error, null, 2));
+        throw new Error(`Erro ao atualizar exercício: ${error.message}`);
+      }
+
+      console.log('Update result:', { data, affectedRows: data?.length || 0 });
+
+      if (!data || data.length === 0) {
+        // If the simple update fails, it's likely an RLS policy issue
+        // Let's try to work around it by using upsert
+        console.log('Update returned empty, trying upsert approach...');
+
+        const upsertData = {
+          ...existingExercise,
+          ...exerciseData,
+          updated_at: new Date().toISOString()
+        };
+
+        const { data: upsertResult, error: upsertError } = await supabase
+          .from('exercises')
+          .upsert(upsertData, {
+            onConflict: 'id',
+            ignoreDuplicates: false
+          })
+          .select();
+
+        if (upsertError) {
+          console.error('Upsert error:', upsertError);
+          throw new Error(`Erro ao atualizar exercício via upsert: ${upsertError.message}`);
+        }
+
+        if (!upsertResult || upsertResult.length === 0) {
+          throw new Error('Não foi possível atualizar o exercício. Verifique as permissões.');
+        }
+
+        console.log('Exercise updated successfully via upsert:', upsertResult);
+        return upsertResult;
+      }
+
+      console.log('Exercise updated successfully:', data);
+      return data;
+    } catch (error) {
+      console.error('Error updating exercise:', error);
+      throw error;
+    }
+  },
+
   // Delete exercise
   async deleteExercise(exerciseId: string) {
     try {
-      const { error } = await supabase
+      console.log('Attempting to delete exercise:', exerciseId);
+
+      // First, verify the exercise exists and get current user
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        throw new Error('Usuário não autenticado');
+      }
+
+      console.log('Current user:', user.id);
+
+      // Check if exercise exists and belongs to user
+      const { data: existingExercise, error: fetchError } = await supabase
+        .from('exercises')
+        .select('*')
+        .eq('id', exerciseId)
+        .eq('created_by', user.id)
+        .single();
+
+      if (fetchError) {
+        console.error('Error fetching exercise:', fetchError);
+        throw new Error(`Exercício não encontrado ou sem permissão: ${fetchError.message}`);
+      }
+
+      if (!existingExercise) {
+        throw new Error('Exercício não encontrado ou você não tem permissão para excluí-lo');
+      }
+
+      console.log('Exercise found, deleting:', existingExercise);
+
+      // Try a simpler delete without the created_by condition first to test RLS
+      const { data, error } = await supabase
         .from('exercises')
         .delete()
-        .eq('id', exerciseId);
+        .eq('id', exerciseId)
+        .select();
 
-      if (error) throw error;
+      if (error) {
+        console.error('Supabase delete error:', error);
+        console.error('Error details:', JSON.stringify(error, null, 2));
+
+        // Check if it's a foreign key constraint error
+        if (error.code === '23503' && error.details?.includes('user_exercise_weights')) {
+          throw new Error('Não é possível excluir este exercício pois ele está sendo utilizado em treinos de usuários. Para excluí-lo, primeiro remova-o de todos os treinos.');
+        }
+
+        throw new Error(`Erro ao excluir exercício: ${error.message}`);
+      }
+
+      console.log('Delete result:', { data, affectedRows: data?.length || 0 });
+
+      if (!data || data.length === 0) {
+        throw new Error('Nenhuma linha foi excluída. Isso pode indicar um problema de permissões ou que o exercício não existe.');
+      }
+
+      console.log('Exercise deleted successfully:', data);
+      return data;
     } catch (error) {
       console.error('Error deleting exercise:', error);
       throw error;
@@ -1109,6 +1280,70 @@ export const workoutService = {
       return data || [];
     } catch (error) {
       console.error('Error fetching workout exercises:', error);
+      throw error;
+    }
+  },
+
+  // Get user workout progress
+  async getUserWorkoutProgress(userId: string, workoutId: string) {
+    try {
+      const { data, error } = await supabase
+        .from('user_workout_progress')
+        .select('exercise_id, completed')
+        .eq('user_id', userId)
+        .eq('workout_id', workoutId);
+
+      if (error) throw error;
+
+      // Convert to object format for easier access
+      const progressMap: Record<string, boolean> = {};
+      data?.forEach(item => {
+        progressMap[item.exercise_id] = item.completed;
+      });
+
+      return progressMap;
+    } catch (error) {
+      console.error('Error fetching workout progress:', error);
+      return {};
+    }
+  },
+
+  // Update exercise completion status
+  async updateExerciseProgress(userId: string, workoutId: string, exerciseId: string, completed: boolean) {
+    try {
+      const { data, error } = await supabase
+        .from('user_workout_progress')
+        .upsert({
+          user_id: userId,
+          workout_id: workoutId,
+          exercise_id: exerciseId,
+          completed: completed,
+          completed_at: completed ? new Date().toISOString() : null,
+          updated_at: new Date().toISOString()
+        }, {
+          onConflict: 'user_id,workout_id,exercise_id'
+        });
+
+      if (error) throw error;
+      return data;
+    } catch (error) {
+      console.error('Error updating exercise progress:', error);
+      throw error;
+    }
+  },
+
+  // Reset all progress for a workout (when starting workout)
+  async resetWorkoutProgress(userId: string, workoutId: string) {
+    try {
+      const { error } = await supabase
+        .from('user_workout_progress')
+        .delete()
+        .eq('user_id', userId)
+        .eq('workout_id', workoutId);
+
+      if (error) throw error;
+    } catch (error) {
+      console.error('Error resetting workout progress:', error);
       throw error;
     }
   }

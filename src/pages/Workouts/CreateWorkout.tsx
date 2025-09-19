@@ -5,7 +5,6 @@ import {
   FaArrowLeft,
   FaTrash,
   FaSearch,
-  FaCheckSquare,
   FaSave,
   FaClipboard
 } from 'react-icons/fa';
@@ -166,26 +165,28 @@ const SearchIcon = styled(FaSearch)<{ colors?: any }>`
   color: ${props => props.colors?.textSecondary || '#666'};
 `;
 
-const StudentsList = styled.div`
+const StudentsList = styled.div<{ colors: any }>`
   max-height: 200px;
   overflow-y: auto;
-  border: 1px solid #ddd;
+  border: 1px solid ${props => props.colors.border};
   border-radius: 8px;
   margin-top: 8px;
+  background: ${props => props.colors.surface};
 `;
 
-const StudentItem = styled.div`
+const StudentItem = styled.div<{ colors: any }>`
   padding: 12px;
-  border-bottom: 1px solid #f0f0f0;
+  border-bottom: 1px solid ${props => props.colors.border};
   cursor: pointer;
   transition: background 0.2s;
+  color: ${props => props.colors.text};
 
   &:hover {
-    background: #f9f9f9;
+    background: ${props => props.colors.surfaceHover};
   }
 
   &.selected {
-    background: ${theme.colors.primaryLight};
+    background: ${theme.colors.primary};
     color: white;
   }
 `;
@@ -211,11 +212,11 @@ const ExercisesList = styled.div`
   gap: 12px;
 `;
 
-const ExerciseItem = styled.div`
-  border: 1px solid #e0e0e0;
+const ExerciseItem = styled.div<{ colors: any }>`
+  border: 1px solid ${props => props.colors.border};
   border-radius: 8px;
   padding: 16px;
-  background: #f9f9f9;
+  background: ${props => props.colors.surfaceSecondary};
 `;
 
 const ExerciseHeader = styled.div`
@@ -309,8 +310,8 @@ const Modal = styled.div`
   z-index: 1000;
 `;
 
-const ModalContent = styled.div`
-  background: white;
+const ModalContent = styled.div<{ colors: any }>`
+  background: ${props => props.colors.surface};
   border-radius: 12px;
   padding: 24px;
   max-width: 600px;
@@ -393,7 +394,7 @@ const CreateWorkout: React.FC = () => {
   const isEditMode = !!id;
   const [userProfile, setUserProfile] = useState<any>(null);
   const [loading, setLoading] = useState(true);
-  const [originalWorkout, setOriginalWorkout] = useState<any>(null);
+  const [originalWorkout] = useState<any>(null);
   
   // Form data
   const [workoutName, setWorkoutName] = useState('');
@@ -488,7 +489,7 @@ const CreateWorkout: React.FC = () => {
     try {
       const workout = await workoutService.getWorkoutDetails(workoutId);
       if (workout) {
-        setOriginalWorkout(workout);
+        // setOriginalWorkout(workout);
         setWorkoutName(workout.name);
         setDescription(workout.description || '');
         setDuration(workout.duration?.toString() || '');
@@ -687,7 +688,7 @@ const CreateWorkout: React.FC = () => {
         <Section colors={colors}>
           <SectionTitle colors={colors}>Selecione o Aluno</SectionTitle>
           <SearchBox>
-            <SearchIcon />
+            <SearchIcon colors={colors} />
             <SearchInput
               colors={colors}
               type="text"
@@ -696,10 +697,11 @@ const CreateWorkout: React.FC = () => {
               onChange={(e) => setStudentSearch(e.target.value)}
             />
           </SearchBox>
-          <StudentsList>
+          <StudentsList colors={colors}>
             {filteredStudents.map(student => (
               <StudentItem
                 key={student.id}
+                colors={colors}
                 className={selectedStudent?.id === student.id ? 'selected' : ''}
                 onClick={() => setSelectedStudent(student)}
               >
@@ -792,7 +794,6 @@ const CreateWorkout: React.FC = () => {
               checked={showCustomExercise}
               onChange={(e) => setShowCustomExercise(e.target.checked)}
             />
-            <FaCheckSquare />
             Outro exercício?
           </CheckboxLabel>
         </ExerciseSearch>
@@ -830,7 +831,7 @@ const CreateWorkout: React.FC = () => {
         
         <ExercisesList style={{ marginTop: '20px' }}>
           {selectedExercises.map((exercise, index) => (
-            <ExerciseItem key={index}>
+            <ExerciseItem key={index} colors={colors}>
               <ExerciseHeader>
                 <ExerciseName colors={colors}>{exercise.exercise?.name}</ExerciseName>
                 <RemoveButton onClick={() => handleRemoveExercise(index)}>
@@ -905,7 +906,7 @@ const CreateWorkout: React.FC = () => {
       {/* Custom Exercise Modal */}
       {showCustomExerciseModal && (
         <Modal onClick={() => setShowCustomExerciseModal(false)}>
-          <ModalContent onClick={(e) => e.stopPropagation()}>
+          <ModalContent colors={colors} onClick={(e) => e.stopPropagation()}>
             <ModalTitle colors={colors}>Criar Exercício Personalizado</ModalTitle>
             
             <CustomExerciseForm>
@@ -979,8 +980,8 @@ const CreateWorkout: React.FC = () => {
       {/* Templates Modal */}
       {showTemplates && (
         <Modal onClick={() => setShowTemplates(false)}>
-          <ModalContent onClick={(e) => e.stopPropagation()}>
-            <ModalTitle>Selecionar Template</ModalTitle>
+          <ModalContent colors={colors} onClick={(e) => e.stopPropagation()}>
+            <ModalTitle colors={colors}>Selecionar Template</ModalTitle>
             
             {templates.map(template => (
               <div

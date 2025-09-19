@@ -34,12 +34,16 @@ const ToggleButton = styled.button<{ colors: any }>`
 `;
 
 export const ThemeToggle: React.FC = () => {
-  const { theme, toggleTheme } = useTheme();
+  const { isDarkMode, toggleTheme } = useTheme();
   const { colors } = useThemeColors();
 
   return (
-    <ToggleButton onClick={toggleTheme} colors={colors}>
-      {theme === 'light' ? <FaMoon /> : <FaSun />}
+    <ToggleButton
+      onClick={toggleTheme}
+      colors={colors}
+      title={isDarkMode ? 'Mudar para tema claro' : 'Mudar para tema escuro'}
+    >
+      {isDarkMode ? <FaSun /> : <FaMoon />}
     </ToggleButton>
   );
 };
