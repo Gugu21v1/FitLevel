@@ -309,7 +309,7 @@ const UserExercises: React.FC = () => {
       await loadUserExercises();
     } catch (error) {
       console.error('Error deleting exercise:', error);
-      alert(error.message || 'Erro ao excluir exercício');
+      alert((error as any).message || 'Erro ao excluir exercício');
     }
   };
 
