@@ -10,7 +10,7 @@ export const useThemeColors = () => {
     background: theme.colors[currentTheme].background,
     surface: theme.colors[currentTheme].surface,
     surfaceSecondary: theme.colors[currentTheme].surfaceSecondary,
-    surfaceHover: theme.colors[currentTheme].surfaceHover || theme.colors[currentTheme].surfaceSecondary,
+    surfaceHover: theme.colors[currentTheme].surfaceSecondary,
     text: theme.colors[currentTheme].text,
     textSecondary: theme.colors[currentTheme].textSecondary,
     textLight: theme.colors[currentTheme].textLight || theme.colors[currentTheme].textSecondary,

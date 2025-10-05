@@ -1,4 +1,4 @@
-export type UserType = 'aluno' | 'academia' | 'admin';
+export type UserType = 'aluno' | 'academia' | 'personal' | 'admin';
 export type UserStatus = 'ativo' | 'inativo' | 'suspenso';
 export type WorkoutDifficulty = 'iniciante' | 'intermediario' | 'avancado' | 'expert';
 

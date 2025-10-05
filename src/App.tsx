@@ -17,6 +17,7 @@ import EditExercise from './pages/Exercises/EditExercise';
 import { Nutrition } from './pages/Nutrition/Nutrition';
 import { Progress } from './pages/Progress/Progress';
 import { Challenges } from './pages/Challenges/Challenges';
+import JoinChallenge from './pages/Challenges/JoinChallenge';
 import { Goals } from './pages/Goals/Goals';
 import { Calendar } from './pages/Calendar/Calendar';
 import { Recipes } from './pages/Recipes/Recipes';
@@ -86,6 +87,7 @@ const AppRoutes: React.FC = () => {
         <Route path="nutrition" element={<Nutrition />} />
         <Route path="progress" element={<Progress />} />
         <Route path="challenges" element={<Challenges />} />
+        <Route path="challenges/join/:inviteCode" element={<JoinChallenge />} />
         <Route path="goals" element={<Goals />} />
         <Route path="calendar" element={<Calendar />} />
         <Route path="recipes" element={<Recipes />} />

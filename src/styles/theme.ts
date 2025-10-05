@@ -8,7 +8,7 @@ export const theme = {
     warning: '#FFC107',
     error: '#F44336',
     info: '#2196F3',
-    
+
     // Light theme colors
     light: {
       background: '#F8FAFC',
@@ -23,7 +23,7 @@ export const theme = {
       inputText: '#1F2937',
       inputPlaceholder: '#9CA3AF',
     },
-    
+
     // Dark theme colors
     dark: {
       background: '#0F172A',

@@ -31,17 +31,25 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       try {
         const currentUser = await authService.getCurrentUser();
         if (currentUser) {
-          // Detect admin users by email
-          const isAdmin = currentUser.email === 'fitlevel2025@gmail.com' || 
-                         currentUser.email === 'admin@fitlevel.com';
-          
+          // Fetch user profile from profiles table to get the correct type
+          const profile = await authService.getProfile(currentUser.id);
+
+          console.log('AuthContext - Fetched profile from DB:', profile);
+
           setUser({
             id: currentUser.id,
             email: currentUser.email!,
-            name: currentUser.user_metadata?.name || currentUser.email?.split('@')[0] || 'Usuário',
-            type: isAdmin ? 'admin' : 'aluno',
-            status: 'ativo',
+            name: profile?.name || currentUser.user_metadata?.name || currentUser.email?.split('@')[0] || 'Usuário',
+            type: profile?.type || 'aluno', // Use type from database
+            status: profile?.status || 'ativo',
             avatar: currentUser.user_metadata?.avatar,
+            gender: profile?.gender,
+            birth_date: profile?.birth_date,
+            number: profile?.number,
+            address: profile?.address,
+            academy_id: profile?.academy_id,
+            photo_url: profile?.photo_url,
+            notes: profile?.notes,
             createdAt: new Date(currentUser.created_at),
             updatedAt: new Date(currentUser.updated_at || currentUser.created_at),
           });
@@ -58,19 +66,27 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     checkUser();
 
-    const { data: { subscription } } = authService.onAuthStateChange((user: any) => {
+    const { data: { subscription } } = authService.onAuthStateChange(async (user: any) => {
       if (user) {
-        // Detect admin users by email
-        const isAdmin = user.email === 'fitlevel2025@gmail.com' || 
-                       user.email === 'admin@fitlevel.com';
+        // Fetch user profile from profiles table to get the correct type
+        const profile = await authService.getProfile(user.id);
+
+        console.log('AuthContext onAuthStateChange - Fetched profile from DB:', profile);
 
         setUser({
           id: user.id,
           email: user.email!,
-          name: user.user_metadata?.name || user.email?.split('@')[0] || 'Usuário',
-          type: isAdmin ? 'admin' : 'aluno',
-          status: 'ativo',
+          name: profile?.name || user.user_metadata?.name || user.email?.split('@')[0] || 'Usuário',
+          type: profile?.type || 'aluno', // Use type from database
+          status: profile?.status || 'ativo',
           avatar: user.user_metadata?.avatar,
+          gender: profile?.gender,
+          birth_date: profile?.birth_date,
+          number: profile?.number,
+          address: profile?.address,
+          academy_id: profile?.academy_id,
+          photo_url: profile?.photo_url,
+          notes: profile?.notes,
           createdAt: new Date(user.created_at),
           updatedAt: new Date(user.updated_at || user.created_at),
         });
